@@ -19,6 +19,8 @@ npm run dev            # http://localhost:3000
 ```
 `SUPABASE_SERVICE_ROLE_KEY` must be a server-side Supabase secret key (`sb_secret_…`) or legacy `service_role` key. Do not copy the publishable/anon key into this variable: it cannot create orders because row-level security blocks it. Keep the server key private; the browser only receives `NEXT_PUBLIC_` variables. `.env` is excluded from Git.
 
+Admin sign-in accepts a configured username alias while Supabase Auth continues to manage the actual account and password. Set `ADMIN_LOGIN_USERNAME` to the desired username and `ADMIN_LOGIN_EMAIL` to the existing admin user's Supabase Auth email. Change the password in Supabase Dashboard → Authentication → Users; never put the password in environment variables or application code.
+
 If both `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are unset, the API uses `data/seed.json` and saves test orders to `data/local-db.json`. If only one is set, the API reports a configuration error.
 
 Other scripts: `npm run build` / `npm start` (production build), `npm run seed`, `npm run import:shopify -- path/to/products_export.csv`.
@@ -29,8 +31,9 @@ Other scripts: `npm run build` / `npm start` (production build), `npm run seed`,
 3. Add the variables from `.env.example` in **Project → Settings → Environment Variables**:
    - `SUPABASE_URL` and the server-side `SUPABASE_SERVICE_ROLE_KEY` for the API. Get the secret/service-role key from Supabase Project Settings → API Keys; do not use the publishable/anon key. If the public key is used by mistake, Supabase row-level security rejects checkout order inserts. Without these variables the live site uses seed data and orders fail (Vercel's file system is read-only).
    - `NEXT_PUBLIC_SUPABASE_URL` (the same project URL) and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for customer accounts and the admin panel. These are baked in at build time, so redeploy after changing them. The older `VITE_` names also work.
+   - `ADMIN_LOGIN_USERNAME` and `ADMIN_LOGIN_EMAIL` for the server-side admin username alias. Set the email to the existing admin Auth user's email, then redeploy. The password remains managed by Supabase Auth.
    - `RESEND_API_KEY`, `ORDER_NOTIFICATION_EMAIL` and `EMAIL_FROM` for new-order emails (verify the sender domain in Resend). If they are missing, orders still complete and the server logs the issue.
-   - To enable manual JazzCash/Easypaisa transfers, set the respective account name and account number. QR image URLs are optional. These are manual transfers, not live payment-gateway integrations; verify payment in the receiving account before marking an order paid in Admin.
+   - To enable manual JazzCash/Easypaisa transfers, set the respective account title and account number. These are manual transfers, not live payment-gateway integrations; verify payment in the receiving account before marking an order paid in Admin.
 4. Deploy. Admin panel: `/admin`. Use **Website content** to edit storefront copy, images, navigation, section visibility/order, and theme settings; use **Collections** to create and manage collections such as Attar. Image uploads use the existing `ameza-product-images` bucket. Website content is saved in Supabase and served to storefront visitors. Health check: `/health` should return `{"ok":true,"store":"Supabase"}`.
 
 ## Store features

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -28,8 +28,8 @@ const slugifyHandle = title => title.toLowerCase().normalize('NFKD').replace(/[\
 const productHandle = title => slugifyHandle(title) || `perfume-${Date.now()}`;
 
 export default function Admin() {
-  const { enabled, ready, user, signIn, signOut } = useAuth();
-  const [email, setEmail] = useState('');
+  const { enabled, ready, user, signInAdmin, signOut } = useAuth();
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [authorized, setAuthorized] = useState(false);
@@ -41,6 +41,13 @@ export default function Admin() {
   const [selectedCollection, setSelectedCollection] = useState(null);
   const [collectionLinks, setCollectionLinks] = useState([]);
   const [section, setSection] = useState('products');
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
+  const [orderPaymentFilter, setOrderPaymentFilter] = useState('all');
+  const [orderSort, setOrderSort] = useState('newest');
+  const [expandedOrderId, setExpandedOrderId] = useState(null);
+  const [orderActionId, setOrderActionId] = useState(null);
+  const [ordersRefreshing, setOrdersRefreshing] = useState(false);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [contentForm, setContentForm] = useState(() => getSiteContentSnapshot());
@@ -52,6 +59,28 @@ export default function Admin() {
   const [storeWarning, setStoreWarning] = useState('');
 
   const pendingOrders = orders.filter(order => order.confirmation_status === 'pending');
+  const confirmedOrders = orders.filter(order => order.confirmation_status === 'confirmed');
+  const unpaidWalletOrders = orders.filter(order =>
+    ['jazzcash', 'easypaisa'].includes(order.payment_method) && order.payment_status !== 'paid'
+    && order.confirmation_status !== 'rejected');
+  const filteredOrders = orders
+    .filter(order => orderStatusFilter === 'all' || (order.confirmation_status || 'confirmed') === orderStatusFilter)
+    .filter(order => orderPaymentFilter === 'all' || order.payment_method === orderPaymentFilter)
+    .filter(order => {
+      const address = order.shipping_address || {};
+      const search = orderSearch.trim().toLowerCase();
+      if (!search) return true;
+      return [
+        order.order_number, order.email, order.phone, order.payment_reference,
+        address.firstName, address.lastName, address.address1, address.city,
+        ...(order.order_items || []).flatMap(item => [item.title, item.variant_title]),
+      ].some(value => String(value || '').toLowerCase().includes(search));
+    })
+    .sort((a, b) => orderSort === 'oldest'
+      ? new Date(a.created_at) - new Date(b.created_at)
+      : orderSort === 'highest'
+        ? Number(b.total) - Number(a.total)
+        : new Date(b.created_at) - new Date(a.created_at));
   const lowStockProducts = products.filter(product =>
     (product.product_variants || []).some(variant => variant.inventory_quantity <= LOW_STOCK_LIMIT));
   const outOfStockVariants = products.flatMap(product => product.product_variants || [])
@@ -308,6 +337,7 @@ export default function Admin() {
   async function updateOrderStatus(orderId, fulfillment_status) {
     setError('');
     setNotice('');
+    setOrderActionId(orderId);
     try {
       const { data, error: updateError } = await supabase.from('orders').update({ fulfillment_status }).eq('id', orderId).select().single();
       if (updateError) throw updateError;
@@ -315,6 +345,8 @@ export default function Admin() {
       setNotice(`Order #${data.order_number} updated.`);
     } catch (updateError) {
       setError(errorMessage(updateError));
+    } finally {
+      setOrderActionId(null);
     }
   }
 
@@ -322,6 +354,7 @@ export default function Admin() {
     if (!window.confirm(`Have you verified the ${order.payment_method} transfer for order #${order.order_number} in the receiving account?`)) return;
     setError('');
     setNotice('');
+    setOrderActionId(order.id);
     try {
       const { data, error: paymentError } = await supabase.from('orders')
         .update({ payment_status: 'paid' })
@@ -334,12 +367,15 @@ export default function Admin() {
       setNotice(`Payment for order #${order.order_number} marked as verified.`);
     } catch (paymentError) {
       setError(errorMessage(paymentError));
+    } finally {
+      setOrderActionId(null);
     }
   }
 
   async function decideOrder(order, decision) {
     setError('');
     setNotice('');
+    setOrderActionId(order.id);
     try {
       const { data, error: decisionError } = await supabase.rpc('admin_set_order_confirmation', {
         p_order_id: order.id,
@@ -358,6 +394,25 @@ export default function Admin() {
       setNotice(`Order #${order.order_number} ${decision}.`);
     } catch (decisionError) {
       setError(errorMessage(decisionError));
+    } finally {
+      setOrderActionId(null);
+    }
+  }
+
+  async function refreshOrders() {
+    setOrdersRefreshing(true);
+    setError('');
+    setNotice('');
+    try {
+      const { data, error: refreshError } = await supabase.from('orders')
+        .select('*, order_items(*)').order('created_at', { ascending: false }).limit(100);
+      if (refreshError) throw refreshError;
+      setOrders(data || []);
+      setNotice('Orders refreshed.');
+    } catch (refreshError) {
+      setError(errorMessage(refreshError));
+    } finally {
+      setOrdersRefreshing(false);
     }
   }
 
@@ -468,7 +523,7 @@ export default function Admin() {
     event.preventDefault();
     setError('');
     try {
-      await signIn(email, password);
+      await signInAdmin(username, password);
     } catch (loginError) {
       setError(errorMessage(loginError));
     }
@@ -484,7 +539,7 @@ export default function Admin() {
         <form className="admin-login__card" onSubmit={submitLogin}>
           <p className="admin-eyebrow">AMÉZA</p><h1>Admin sign in</h1>
           {error && <p className="admin-alert admin-alert--error" role="alert">{error}</p>}
-          <label>Email<input type="email" autoComplete="username" required value={email} onChange={event => setEmail(event.target.value)} /></label>
+          <label>Username<input autoComplete="username" required value={username} onChange={event => setUsername(event.target.value)} /></label>
           <label>Password
             <span className="admin-password-field">
               <input type={passwordVisible ? 'text' : 'password'} autoComplete="current-password" required value={password} onChange={event => setPassword(event.target.value)} />
@@ -696,7 +751,20 @@ export default function Admin() {
         </div>
       ) : section === 'orders' ? (
         <section className="admin-panel admin-orders">
-          <div className="admin-panel__heading"><div><p className="admin-eyebrow">Orders</p><h2>Orders</h2></div><span className="admin-count">Latest {orders.length}</span></div>
+          <div className="admin-panel__heading">
+            <div><p className="admin-eyebrow">Orders</p><h2>Orders</h2></div>
+            <div className="admin-orders__heading-actions">
+              <span className="admin-count">Showing {filteredOrders.length} of latest {orders.length}</span>
+              <button className="admin-button admin-button--quiet" type="button" onClick={refreshOrders} disabled={ordersRefreshing}>
+                {ordersRefreshing ? 'Refreshing…' : 'Refresh orders'}
+              </button>
+            </div>
+          </div>
+          <div className="admin-order-summary" aria-label="Order summary">
+            <div><span>Awaiting review</span><b>{pendingOrders.length}</b></div>
+            <div><span>Confirmed</span><b>{confirmedOrders.length}</b></div>
+            <div><span>Wallet payment to verify</span><b>{unpaidWalletOrders.length}</b></div>
+          </div>
           {lowStockProducts.length > 0 && <div className="admin-stock-alert">
             <b>Low stock</b>
             <span>{lowStockProducts.map(product => {
@@ -704,30 +772,80 @@ export default function Admin() {
               return `${product.title} (${lowest})`;
             }).join(' · ')}</span>
           </div>}
-          {orders.length ? <div className="admin-table-scroll"><table>
-            <thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Placed</th><th>Payment</th><th>Confirmation / fulfillment</th></tr></thead>
-            <tbody>{orders.map(order => <tr key={order.id}>
-              <td><b>#{order.order_number}</b><small>{order.confirmation_status || 'confirmed'}</small></td>
-              <td>{order.email}<small>{order.phone}</small></td>
-              <td>{(order.order_items || []).map(item => `${item.title} × ${item.quantity}`).join(', ')}</td>
-              <td>{money(order.total)}</td><td>{fmtDate(order.created_at)}</td>
-              <td><b>{order.payment_method === 'jazzcash' ? 'JazzCash' : order.payment_method === 'easypaisa' ? 'Easypaisa' : 'Cash on delivery'}</b><small>{order.payment_status || 'pending'}{order.payment_reference ? ` · Ref: ${order.payment_reference}` : ''}</small>
-                {['jazzcash', 'easypaisa'].includes(order.payment_method) && order.confirmation_status !== 'rejected' && order.payment_status !== 'paid' && order.payment_reference && <button className="admin-button" type="button" onClick={() => verifyOrderPayment(order)}>Mark payment received</button>}
-              </td>
-              <td>
-                {order.confirmation_status === 'pending' && <div className="admin-order-actions">
-                  {(order.payment_method === 'cod' || order.payment_status === 'paid') && <button className="admin-button" onClick={() => decideOrder(order, 'confirmed')}>Confirm</button>}
-                  {order.payment_method !== 'cod' && order.payment_status !== 'paid' && <small>Verify payment before confirming.</small>}
-                  <button className="admin-button admin-button--quiet" onClick={() => {
-                    if (window.confirm(`Reject order #${order.order_number}? Its reserved stock will be returned.`)) decideOrder(order, 'rejected');
-                  }}>Reject</button>
-                </div>}
-                {order.confirmation_status !== 'pending' && <select aria-label={`Fulfillment status for order ${order.order_number}`} value={order.fulfillment_status} onChange={event => updateOrderStatus(order.id, event.target.value)}>
-                  {ORDER_STATUSES.map(status => <option key={status} value={status}>{status[0].toUpperCase() + status.slice(1)}</option>)}
-                </select>}
-              </td>
-            </tr>)}</tbody>
-          </table></div> : <p className="admin-empty">No orders have been placed yet.</p>}
+          {orders.length > 0 && <>
+            <div className="admin-order-tools">
+              <label className="admin-order-search">Search orders
+                <input type="search" value={orderSearch} onChange={event => setOrderSearch(event.target.value)} placeholder="Order #, customer, phone, item or payment ref" />
+              </label>
+              <label>Confirmation
+                <select value={orderStatusFilter} onChange={event => setOrderStatusFilter(event.target.value)}>
+                  <option value="all">All statuses</option>
+                  <option value="pending">Awaiting review</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </label>
+              <label>Payment
+                <select value={orderPaymentFilter} onChange={event => setOrderPaymentFilter(event.target.value)}>
+                  <option value="all">All methods</option>
+                  <option value="cod">Cash on delivery</option>
+                  <option value="jazzcash">JazzCash</option>
+                  <option value="easypaisa">Easypaisa</option>
+                </select>
+              </label>
+              <label>Sort by
+                <select value={orderSort} onChange={event => setOrderSort(event.target.value)}>
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="highest">Highest total</option>
+                </select>
+              </label>
+            </div>
+            {filteredOrders.length ? <div className="admin-table-scroll"><table>
+              <thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Placed</th><th>Payment</th><th>Confirmation / fulfillment</th></tr></thead>
+              <tbody>{filteredOrders.map(order => {
+                const confirmation = order.confirmation_status || 'confirmed';
+                const address = order.shipping_address || {};
+                const expanded = expandedOrderId === order.id;
+                const actionBusy = orderActionId === order.id;
+                return <Fragment key={order.id}>
+                  <tr>
+                    <td><b>#{order.order_number}</b><span className={`admin-order-badge admin-order-badge--${confirmation}`}>{confirmation}</span>
+                      <button className="admin-text-button admin-order-details-toggle" type="button" aria-expanded={expanded} onClick={() => setExpandedOrderId(expanded ? null : order.id)}>{expanded ? 'Hide details' : 'Details'}</button>
+                    </td>
+                    <td>{order.email}<small>{order.phone}</small></td>
+                    <td>{(order.order_items || []).map(item => `${item.title} × ${item.quantity}`).join(', ')}</td>
+                    <td>{money(order.total)}</td><td>{fmtDate(order.created_at)}</td>
+                    <td><b>{order.payment_method === 'jazzcash' ? 'JazzCash' : order.payment_method === 'easypaisa' ? 'Easypaisa' : 'Cash on delivery'}</b>
+                      <span className={`admin-order-payment admin-order-payment--${order.payment_status || 'pending'}`}>{order.payment_status || 'pending'}</span>
+                      {order.payment_reference && <small>Ref: {order.payment_reference}</small>}
+                      {['jazzcash', 'easypaisa'].includes(order.payment_method) && confirmation !== 'rejected' && order.payment_status !== 'paid' && order.payment_reference && <button className="admin-button admin-button--quiet" type="button" disabled={actionBusy} onClick={() => verifyOrderPayment(order)}>{actionBusy ? 'Updating…' : 'Verify payment'}</button>}
+                    </td>
+                    <td>
+                      {confirmation === 'pending' && <div className="admin-order-actions">
+                        {(order.payment_method === 'cod' || order.payment_status === 'paid') && <button className="admin-button" disabled={actionBusy} onClick={() => decideOrder(order, 'confirmed')}>{actionBusy ? 'Updating…' : 'Confirm'}</button>}
+                        {order.payment_method !== 'cod' && order.payment_status !== 'paid' && <small>Verify payment before confirming.</small>}
+                        <button className="admin-button admin-button--quiet" disabled={actionBusy} onClick={() => {
+                          if (window.confirm(`Reject order #${order.order_number}? Its reserved stock will be returned.`)) decideOrder(order, 'rejected');
+                        }}>Reject</button>
+                      </div>}
+                      {confirmation !== 'pending' && <select aria-label={`Fulfillment status for order ${order.order_number}`} value={order.fulfillment_status || 'unfulfilled'} disabled={actionBusy} onChange={event => updateOrderStatus(order.id, event.target.value)}>
+                        {ORDER_STATUSES.map(status => <option key={status} value={status}>{status[0].toUpperCase() + status.slice(1)}</option>)}
+                      </select>}
+                    </td>
+                  </tr>
+                  {expanded && <tr className="admin-order-details"><td colSpan="7">
+                    <div className="admin-order-details__grid">
+                      <div><b>Delivery address</b><span>{[address.firstName, address.lastName].filter(Boolean).join(' ') || 'Name not provided'}</span><span>{address.address1 || 'Address not provided'}</span><span>{[address.city, address.zip, address.country].filter(Boolean).join(', ')}</span></div>
+                      <div><b>Order items</b>{(order.order_items || []).map(item => <span key={item.id}>{item.title}{item.variant_title && item.variant_title !== 'Default Title' ? ` · ${item.variant_title}` : ''} × {item.quantity} — {money(Number(item.price) * Number(item.quantity))}</span>)}</div>
+                      <div><b>Order note</b><span>{order.note || 'No note'}</span><b>Shipping / discount</b><span>{money(order.shipping)} / {money(order.discount)}</span></div>
+                    </div>
+                  </td></tr>}
+                </Fragment>;
+              })}</tbody>
+            </table></div> : <div className="admin-empty">No orders match these filters. <button className="admin-text-button" type="button" onClick={() => { setOrderSearch(''); setOrderStatusFilter('all'); setOrderPaymentFilter('all'); }}>Clear filters</button></div>}
+          </>}
+          {!orders.length && <p className="admin-empty">No orders have been placed yet.</p>}
         </section>
       ) : (
         <section className="admin-panel admin-content-editor">

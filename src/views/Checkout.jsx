@@ -89,7 +89,17 @@ export default function Checkout() {
           <div className="co__payment-options">
             <label className={`co__payment-option${paymentMethod === 'cod' ? ' is-selected' : ''}`}>
               <input type="radio" name="paymentMethod" value="cod" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} />
-              <span><b>Cash on delivery</b><small>Pay in cash when your parcel arrives.</small></span>
+              <span className="co__payment-content">
+                <i className="co__payment-icon co__payment-icon--cod" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 7h11v11H3zM14 11h4l3 3v4h-7z" />
+                    <circle cx="7.5" cy="18" r="1.5" />
+                    <circle cx="17.5" cy="18" r="1.5" />
+                    <path d="M6 10h5M6 13h3" />
+                  </svg>
+                </i>
+                <span className="co__payment-copy"><b>Cash on delivery</b><small>Pay in cash when your parcel arrives.</small></span>
+              </span>
             </label>
             {[
               ['jazzcash', 'JazzCash'],
@@ -99,8 +109,24 @@ export default function Checkout() {
               return (
                 <label className={`co__payment-option${paymentMethod === method ? ' is-selected' : ''}`} key={method}>
                   <input type="radio" name="paymentMethod" value={method} checked={paymentMethod === method} disabled={!details?.enabled} onChange={() => setPaymentMethod(method)} />
-                  <span><b>{label} {details?.enabled ? 'manual transfer' : '(setup required)'}</b>
-                    <small>{details?.enabled ? 'Transfer before placing your order; payment will be verified by the store.' : 'Available after receiving account details are configured.'}</small>
+                  <span className="co__payment-content">
+                    <i className={`co__payment-icon co__payment-icon--${method}`} aria-hidden="true">
+                      {method === 'jazzcash' ? (
+                        <svg viewBox="0 0 48 36">
+                          <path fill="#ed1c24" d="M22 2C29-1 39 0 46 4c2 1 2 3 0 4-9 4-15 10-15 17 0 6 5 11 15 15 2 1 2 3 0 4-8 4-18 3-25-1-6-4-9-10-9-18S15 6 22 2Z" />
+                          <path fill="#ffc20e" d="M13 1C23 4 29 11 29 18S24 32 14 36C9 38 3 37 1 35c-2-1-1-3 1-4 7-3 10-7 10-12V5c0-3 0-5 1-4Z" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 48 48">
+                          <path fill="#302b3b" fillRule="evenodd" d="M7 19C9 8 19 2 31 2c11 0 17 6 16 15-1 9-11 14-23 14-7 0-13-2-18-5l1-7Zm9-1c3 2 6 3 10 3 7 0 12-3 12-6 0-3-4-5-10-5s-10 2-12 8Z" />
+                          <path fill="#28ad60" d="M6 24c5 7 13 11 22 11 8 0 14-3 18-9l2 5c-4 10-13 16-24 16C12 47 4 40 3 30l3-6Z" />
+                        </svg>
+                      )}
+                    </i>
+                    <span className="co__payment-copy">
+                      <b>{label} {details?.enabled ? 'manual transfer' : '(setup required)'}</b>
+                      <small>{details?.enabled ? 'Transfer before placing your order; payment will be verified by the store.' : 'Available after receiving account details are configured.'}</small>
+                    </span>
                   </span>
                 </label>
               );
@@ -112,9 +138,8 @@ export default function Checkout() {
             return (
               <div className="co__wallet-details">
                 <b>{label} transfer details</b>
-                <p>Account name: <strong>{details.accountName}</strong></p>
+                <p>Account title: <strong>{details.accountName}</strong></p>
                 <p>Account number: <strong>{details.accountNumber}</strong></p>
-                {details.qrImageUrl && <img src={details.qrImageUrl} alt={`${label} payment QR code`} loading="lazy" />}
                 <label>Transaction reference<input name="paymentReference" required maxLength="100" autoComplete="off" /></label>
               </div>
             );
