@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { A } from './sections.jsx';
 import '../styles/perfume-scroll.css';
 import { nl2br } from '../lib/nl2br.jsx';
-import { hero as H } from '../data/siteContent.js';
+import { hero as H, site } from '../data/siteContent.js';
 
 const ing = key => `/assets/ing-${key}.svg`;
 
@@ -72,11 +72,11 @@ export default function PerfumeScroll() {
   return (
     <section ref={ref} className="ps hz" data-ps id="ps-hero" style={{ '--ps-len': H.len + 'vh', '--ps-top': H.topOff + 'px', '--ps-h': H.stageH }}>
       <div className="ps__sticky">
-        <div className="ps__bg" />
+        <div className="ps__bg" style={H.backgroundImage ? { backgroundImage: `linear-gradient(rgba(251,247,239,.22),rgba(251,247,239,.22)),url("${H.backgroundImage}")` } : undefined} />
         <div className="ps__side l">{H.sideL}</div><div className="ps__side r">{H.sideR}</div>
         <div className="ps__word l">{nl2br(H.wordL)}</div><div className="ps__word r">{nl2br(H.wordR)}</div>
         <div className="ps__head">
-          <div className="ps__brand"><span className="ps__emb"><img src="/assets/ameza-emblem.png" alt="" /></span><span className="ps__bn"><b>{H.brand}</b><small>{H.brandSub}</small></span></div>
+          <div className="ps__brand"><span className="ps__emb"><img src={site.logoImage || '/assets/ameza-emblem.png'} alt="" /></span><span className="ps__bn"><b>{H.brand}</b><small>{H.brandSub}</small></span></div>
           <p className="ps__tag">{H.tag}</p><h2 className="ps__title">{H.heading}</h2>
         </div>
         <p className="ps__lead">{H.lead}</p>
@@ -85,7 +85,7 @@ export default function PerfumeScroll() {
           <div className="ps__glow" />
           <div className="ps__fx">{Array.from({ length: 8 }, (_, i) => <img key={i} alt="" src={first} />)}</div>
           <div className="ps__hero"><img alt="" src={first} /></div>
-          <div className="ps__bottle" style={{ '--bottle': "url('/assets/drift-bottle.webp')", '--ar': H.bottleAspect }}>
+          <div className="ps__bottle" style={{ '--bottle': `url('${H.bottleImage || '/assets/drift-bottle.webp'}')`, '--ar': H.bottleAspect }}>
             <div className="ps__bimg" role="img" aria-label="Drift by Améza" />
           </div>
           <div className="ps__cyl" data-cyl>

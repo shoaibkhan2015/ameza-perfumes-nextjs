@@ -22,7 +22,7 @@ function orderEmailHtml(order) {
   return `
     <div style="font-family:Arial,sans-serif;color:#17140f;max-width:640px;margin:auto">
       <h1 style="font-family:Georgia,serif">New AMÉZA order #${escapeHtml(order.orderNumber)}</h1>
-      <p>A new cash-on-delivery order has been placed and is awaiting confirmation.</p>
+      <p>A new ${escapeHtml(order.paymentMethod || 'cod')} order has been placed and is awaiting confirmation.</p>
       <h2 style="font-size:16px">Items</h2>
       <table style="width:100%;border-collapse:collapse">
         <thead><tr><th style="text-align:left;padding:8px">Product</th><th style="padding:8px">Qty</th><th style="text-align:right;padding:8px">Total</th></tr></thead>
@@ -32,6 +32,7 @@ function orderEmailHtml(order) {
       <b>Shipping:</b> ${formatMoney(order.shipping)}<br>
       ${Number(order.discount) > 0 ? `<b>Discount:</b> −${formatMoney(order.discount)}<br>` : ''}
       <b>Order total:</b> ${formatMoney(order.total)}</p>
+      ${order.paymentReference ? `<p><b>Payment reference:</b> ${escapeHtml(order.paymentReference)} (verify manually before confirming payment)</p>` : ''}
       <h2 style="font-size:16px">Customer and delivery</h2>
       <p><b>Name:</b> ${escapeHtml(fullName || 'Not provided')}<br>
       <b>Email:</b> ${escapeHtml(order.email)}<br>

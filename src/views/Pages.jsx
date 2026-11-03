@@ -1,14 +1,24 @@
 'use client';
+import { Fragment } from 'react';
 import { useParams } from 'next/navigation';
 import { AboutHero, Contact, Faq, Newsletter, Reviews, Values, Video } from '../components/sections.jsx';
 import NotFound from './NotFound.jsx';
 import { useApi, useTitle } from '../lib/hooks.js';
 import { SHOP_NAME } from '../lib/format.js';
+import { pageSections } from '../data/siteContent.js';
 
 // templates/page.about.json
-const About = () => { useTitle('About'); return <><AboutHero /><Values /><Video /><Reviews /><Newsletter /></>; };
+const About = () => {
+  useTitle('About');
+  const sections = { about: <AboutHero />, values: <Values />, video: <Video />, reviews: <Reviews />, newsletter: <Newsletter /> };
+  return <>{pageSections.aboutOrder.map(name => pageSections.aboutVisibility[name] !== false && sections[name] ? <Fragment key={name}>{sections[name]}</Fragment> : null)}</>;
+};
 // templates/page.contact.json
-const ContactPage = () => { useTitle('Contact'); return <><Contact /><Faq /></>; };
+const ContactPage = () => {
+  useTitle('Contact');
+  const sections = { contact: <Contact />, faq: <Faq /> };
+  return <>{pageSections.contactOrder.map(name => pageSections.contactVisibility[name] !== false && sections[name] ? <Fragment key={name}>{sections[name]}</Fragment> : null)}</>;
+};
 
 // templates/page.json + sections/am-page.liquid — any other page stored in the database
 function Generic({ handle }) {

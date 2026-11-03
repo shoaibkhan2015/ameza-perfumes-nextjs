@@ -6,6 +6,7 @@ import Header from './Header.jsx';
 import Footer from './Footer.jsx';
 import Extras from './Extras.jsx';
 import { initEffects } from '../lib/effects.js';
+import { layoutSettings } from '../data/siteContent.js';
 
 // Body class used to be "am-body template-<name>" in layout/theme.liquid
 const templateName = p => {
@@ -23,10 +24,9 @@ export default function Layout({ children }) {
   return (
     <>
       <a href="#MainContent" style={{ position: 'absolute', left: -9999 }}>Skip to content</a>
-      <Announcement />
-      <Header />
+      {layoutSettings.headerVisible && <><Announcement /><Header /></>}
       <main id="MainContent" role="main">{children}</main>
-      <Footer />
+      {layoutSettings.footerVisible && <Footer />}
       <Extras />
     </>
   );

@@ -40,7 +40,7 @@ export function Tiles() {
           const demoStyle = { '--bot': `url('${collectionBottle(tileHandle)}')` };
           return (
             <Link key={i} className="am-tile" href={b.link} data-reveal style={{ '--i': i, '--tb': b.color }}>
-              <div className="am-demo" style={demoStyle} />
+              {b.image ? <img src={b.image} alt="" loading="lazy" /> : <div className="am-demo" style={demoStyle} />}
               <div className="am-tile__meta">
                 <span className="am-tile__eyebrow">Collection</span>
                 <h3>{b.title}</h3>
@@ -81,7 +81,7 @@ export function Offer() {
         <span className="am-code" data-copy={o.code}>{o.code}</span>
         <A className="am-btn" href={o.link}>{o.button}</A>
       </div>
-      <div className="am-offer__img" style={{ '--bot': "url('/assets/drift-bottle.webp')" }} />
+      <div className="am-offer__img" style={{ '--bot': `url('${o.image || '/assets/drift-bottle.webp'}')` }} />
     </div></div></section>
   );
 }
@@ -112,9 +112,14 @@ export function Video() {
           {embed ? (
             yt ? <iframe src={embed} allow="autoplay;fullscreen" allowFullScreen title={v.caption} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} />
                : <button type="button" className="vd-poster" aria-label="Play video" onClick={() => setYt(true)}><span className="vd-play" /></button>
+          ) : v.videoFile ? (
+            <>
+              <video src={v.videoFile} poster={v.posterImage || undefined} autoPlay muted loop playsInline />
+              <button type="button" className="vd-snd" onClick={toggleSound}>{muted ? '🔊 Sound on' : '🔇 Mute'}</button>
+            </>
           ) : (
             <>
-              <video src="/assets/drift-reel.webm" autoPlay muted loop playsInline />
+              <video src="/assets/drift-reel.webm" poster={v.posterImage || undefined} autoPlay muted loop playsInline />
               <button type="button" className="vd-snd" onClick={toggleSound}>{muted ? '🔊 Sound on' : '🔇 Mute'}</button>
             </>
           )}
@@ -132,7 +137,7 @@ export function Reviews() {
   return (
     <section className="am-sec am-rev"><div className="am-wrap">
       <div className="am-head" data-reveal>
-        <div><p className="am-eb">Loved across Pakistan</p><h2 className="am-h">Real people. Real compliments.</h2></div>
+        <div><p className="am-eb">{r.eyebrow}</p><h2 className="am-h">{r.heading}</h2></div>
         <div style={{ textAlign: 'right' }}><div className="am-sum">{r.score}</div><span className="am-stars">★★★★★</span><div style={{ fontSize: 12, opacity: 0.7 }}>{r.count} reviews</div></div>
       </div>
       <div className="am-rail">
@@ -148,9 +153,10 @@ export function Reviews() {
 
 // ---- sections/am-faq.liquid
 export function Faq() {
+  const section = C.faqSection;
   return (
     <section className="am-sec"><div className="am-wrap am-faq" style={{ maxWidth: 820 }}>
-      <div className="am-head" data-reveal><div><p className="am-eb">Got questions?</p><h2 className="am-h">Quick answers</h2></div></div>
+      <div className="am-head" data-reveal><div><p className="am-eb">{section.eyebrow}</p><h2 className="am-h">{section.heading}</h2></div></div>
       {C.faq.map((f, i) => <details key={i} data-reveal><summary>{f.q}</summary><p>{f.a}</p></details>)}
     </div></section>
   );
@@ -162,7 +168,7 @@ export function Newsletter() {
   return (
     <section className="am-sec"><div className="am-wrap"><div className="am-nl" data-reveal>
       <p className="am-eb">{n.eyebrow}</p><h2 className="am-h">{n.heading}</h2><p>{n.text}</p>
-      <NewsletterForm id="am-nl" button="Get my code" />
+      <NewsletterForm id="am-nl" button={n.button} />
     </div></div></section>
   );
 }
@@ -177,9 +183,11 @@ export function AboutHero() {
         <h1 className="am-h" style={{ fontSize: 'clamp(40px,7vw,76px)' }}>{a.heading}</h1>
         <div style={{ marginTop: 18 }}><p>{a.text.split('\n').map((l, i) => <Fragment key={i}>{i > 0 && <br />}{l}</Fragment>)}</p></div>
         <div className="st-stats">{a.stats.map(([b, s]) => <div key={s}><b>{b}</b><small>{s}</small></div>)}</div>
-        <Link className="am-btn" style={{ marginTop: 26 }} href="/collections/all">{a.cta}</Link>
+        <Link className="am-btn" style={{ marginTop: 26 }} href={a.ctaLink}>{a.cta}</Link>
       </div>
-      <div className="st-vis" data-reveal style={{ '--i': 2 }}><div className="st-bot" style={{ '--bot': "url('/assets/drift-bottle.webp')" }} /></div>
+      <div className="st-vis" data-reveal style={{ '--i': 2 }}>
+        {a.image ? <img src={a.image} alt={a.heading} loading="lazy" /> : <div className="st-bot" style={{ '--bot': "url('/assets/drift-bottle.webp')" }} />}
+      </div>
     </div></div></section>
   );
 }
@@ -198,6 +206,7 @@ export function Values() {
 // ---- sections/am-contact.liquid
 export function Contact() {
   const c = C.contact;
+  const section = C.contactSection;
   const [s, setS] = useState({ busy: false, ok: false, err: '' });
   const submit = async e => {
     e.preventDefault();
@@ -208,22 +217,22 @@ export function Contact() {
   };
   return (
     <section className="am-sec"><div className="am-wrap">
-      <div className="am-head" data-reveal><div><p className="am-eb">Get in touch</p><h1 className="am-h">{c.heading}</h1></div></div>
+      <div className="am-head" data-reveal><div><p className="am-eb">{section.eyebrow}</p><h1 className="am-h">{c.heading}</h1></div></div>
       <div className="ct">
         <div className="ct__info" data-reveal>
-          {c.whatsapp && <a className="ct__c" href={`https://wa.me/${c.whatsapp}`} target="_blank" rel="noopener noreferrer"><i>💬</i><div><b>WhatsApp</b><span>{c.whatsappLabel}</span></div></a>}
-          <a className="ct__c" href={`mailto:${c.email}`}><i>✉️</i><div><b>Email</b><span>{c.email}</span></div></a>
-          <a className="ct__c" href={`tel:${c.phone}`}><i>📞</i><div><b>Phone</b><span>{c.phone}</span></div></a>
-          <div className="ct__c"><i>🕘</i><div><b>Hours</b><span>{c.hours}</span></div></div>
+          {c.whatsapp && <a className="ct__c" href={`https://wa.me/${c.whatsapp}`} target="_blank" rel="noopener noreferrer"><i>💬</i><div><b>{section.whatsappTitle}</b><span>{c.whatsappLabel}</span></div></a>}
+          <a className="ct__c" href={`mailto:${c.email}`}><i>✉️</i><div><b>{section.emailTitle}</b><span>{c.email}</span></div></a>
+          <a className="ct__c" href={`tel:${c.phone}`}><i>📞</i><div><b>{section.phoneTitle}</b><span>{c.phone}</span></div></a>
+          <div className="ct__c"><i>🕘</i><div><b>{section.hoursTitle}</b><span>{c.hours}</span></div></div>
         </div>
         <form className="cf" onSubmit={submit}>
-          {s.ok && <p className="cf__ok">Thank you! We have received your message and will reply soon.</p>}
+          {s.ok && <p className="cf__ok">{section.successMessage}</p>}
           {s.err && <p className="am-err">{s.err}</p>}
-          <label>Name<input name="name" autoComplete="name" /></label>
-          <label>Email<input type="email" name="email" required autoComplete="email" /></label>
-          <label>Phone<input name="phone" autoComplete="tel" /></label>
-          <label>Message<textarea name="body" rows="5" required /></label>
-          <button className="am-btn" type="submit" disabled={s.busy}>Send message</button>
+          <label>{section.nameLabel}<input name="name" autoComplete="name" /></label>
+          <label>{section.emailLabel}<input type="email" name="email" required autoComplete="email" /></label>
+          <label>{section.phoneLabel}<input name="phone" autoComplete="tel" /></label>
+          <label>{section.messageLabel}<textarea name="body" rows="5" required /></label>
+          <button className="am-btn" type="submit" disabled={s.busy}>{section.submitLabel}</button>
         </form>
       </div>
     </div></section>

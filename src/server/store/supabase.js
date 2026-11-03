@@ -1,7 +1,19 @@
 // Supabase / PostgreSQL store. Uses the SERVICE ROLE key — keep it on the server only.
 import { createClient } from '@supabase/supabase-js';
 
-const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const isServerKey = key => {
+  if (key.startsWith('sb_secret_')) return true;
+  try {
+    const payload = JSON.parse(Buffer.from(key.split('.')[1], 'base64url').toString('utf8'));
+    return payload.role === 'service_role';
+  } catch {
+    return false;
+  }
+};
+const hasServerKey = isServerKey(serviceRoleKey);
+
+const sb = createClient(process.env.SUPABASE_URL, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 export const name = 'Supabase';
@@ -17,7 +29,7 @@ export async function loadCatalog() {
   const handleById = new Map(prods.map(p => [p.id, p.handle]));
   const products = prods.map(p => ({
     id: p.id, handle: p.handle, title: p.title, descriptionHtml: p.description_html || '', vendor: p.vendor || '',
-    productType: p.product_type || '', tags: p.tags || [], images: p.images || [], published: p.published,
+    productType: p.product_type || '', tags: p.tags || [], images: p.images || [], fragrance: p.fragrance || {}, published: p.published,
     sortOrder: p.sort_order, bestSelling: p.best_selling, createdAt: p.created_at,
     variants: (p.product_variants || []).sort((a, b) => a.position - b.position).map(v => ({
       id: v.id, title: v.title, optionName: v.option_name, price: Number(v.price),
@@ -55,7 +67,7 @@ const mapOrder = (o, items) => ({
   id: o.id, orderNumber: o.order_number, userId: o.user_id, email: o.email, phone: o.phone,
   shippingAddress: o.shipping_address, subtotal: Number(o.subtotal), shipping: Number(o.shipping),
   discount: Number(o.discount), discountCode: o.discount_code, total: Number(o.total),
-  paymentMethod: o.payment_method, paymentStatus: o.payment_status, confirmationStatus: o.confirmation_status,
+  paymentMethod: o.payment_method, paymentReference: o.payment_reference || '', paymentStatus: o.payment_status, confirmationStatus: o.confirmation_status,
   fulfillmentStatus: o.fulfillment_status,
   note: o.note, createdAt: o.created_at,
   items: (items || []).map(i => ({ productId: i.product_id, variantId: i.variant_id, handle: i.handle, title: i.title,
@@ -63,11 +75,16 @@ const mapOrder = (o, items) => ({
 });
 
 export async function createOrder(o) {
-  const row = must(await sb.from('orders').insert({
+  if (!hasServerKey) {
+    throw new Error('Order creation requires a Supabase server-side secret/service_role key. The configured key is a public publishable/anon key and is blocked by row-level security.');
+  }
+  const orderValues = {
     user_id: o.userId || null, email: o.email, phone: o.phone, shipping_address: o.shippingAddress,
     subtotal: o.subtotal, shipping: o.shipping, discount: o.discount, discount_code: o.discountCode || null,
     total: o.total, payment_method: o.paymentMethod, note: o.note || null,
-  }).select().single());
+  };
+  if (o.paymentReference) orderValues.payment_reference = o.paymentReference;
+  const row = must(await sb.from('orders').insert(orderValues).select().single());
   const items = must(await sb.from('order_items').insert(o.items.map(i => ({
     order_id: row.id, product_id: i.productId, variant_id: i.variantId, handle: i.handle, title: i.title,
     variant_title: i.variantTitle, price: i.price, quantity: i.quantity, image: i.image || null,

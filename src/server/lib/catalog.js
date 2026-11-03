@@ -26,7 +26,7 @@ export function serialize(p, collections) {
   const min = variants.reduce((m, v) => (v.price < m.price ? v : m), variants[0]);
   return {
     id: p.id, handle: p.handle, title: p.title, descriptionHtml: p.descriptionHtml, vendor: p.vendor,
-    productType: p.productType, tags: p.tags, images: p.images, featuredImage: p.images[0] || null,
+    productType: p.productType, tags: p.tags, images: p.images, fragrance: p.fragrance || {}, featuredImage: p.images[0] || null,
     createdAt: p.createdAt, sortOrder: p.sortOrder, bestSelling: p.bestSelling,
     variants, hasOnlyDefaultVariant: variants.length === 1 && variants[0].title === 'Default Title',
     optionName: variants[0].optionName,

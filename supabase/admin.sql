@@ -69,9 +69,34 @@ revoke all on function public.admin_set_order_confirmation(uuid, text) from publ
 grant execute on function public.admin_set_order_confirmation(uuid, text) to authenticated;
 
 grant select, insert, update, delete on public.products, public.product_variants to authenticated;
-grant select on public.collections, public.collection_products to authenticated;
+grant select, insert, update, delete on public.collections to authenticated;
+grant select on public.collection_products to authenticated;
 grant select, update on public.orders to authenticated;
 grant select on public.order_items to authenticated;
+grant select, insert, update on public.site_content to authenticated;
+
+drop policy if exists "admin manage collections" on public.collections;
+create policy "admin manage collections" on public.collections
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists "restrict collection inserts to admins" on public.collections;
+create policy "restrict collection inserts to admins" on public.collections
+  as restrictive for insert to authenticated with check (public.is_admin());
+drop policy if exists "restrict collection updates to admins" on public.collections;
+create policy "restrict collection updates to admins" on public.collections
+  as restrictive for update to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists "restrict collection deletes to admins" on public.collections;
+create policy "restrict collection deletes to admins" on public.collections
+  as restrictive for delete to authenticated using (public.is_admin());
+
+drop policy if exists "admin manage site content" on public.site_content;
+create policy "admin manage site content" on public.site_content
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists "restrict site content writes to admins" on public.site_content;
+create policy "restrict site content writes to admins" on public.site_content
+  as restrictive for insert to authenticated with check (public.is_admin());
+drop policy if exists "restrict site content updates to admins" on public.site_content;
+create policy "restrict site content updates to admins" on public.site_content
+  as restrictive for update to authenticated using (public.is_admin()) with check (public.is_admin());
 
 create or replace function public.admin_set_product_collections(p_product_id uuid, p_collection_ids uuid[])
 returns void

@@ -6,6 +6,7 @@ import { useCart } from '../lib/cart.jsx';
 import { announcement, mainMenu, site } from '../data/siteContent.js';
 
 export function Announcement() {
+  if (!announcement.visible) return null;
   return (
     <div className="am-ann">
       <span>{announcement.text}</span>
@@ -47,7 +48,7 @@ export default function Header() {
           </nav>
         </div>
         <Link className="am-hd__logo" href="/">
-          <span className="am-emb"><img src="/assets/ameza-emblem.png" alt="" /></span>
+          <span className="am-emb">{site.logoImage ? <img className="am-hd__img" src={site.logoImage} alt={`${site.brand} logo`} /> : <img src="/assets/ameza-emblem.png" alt="" />}</span>
           <span className="am-wm"><b>{site.brand}</b><small>{site.tagline}</small></span>
         </Link>
         <div className="am-hd__r">

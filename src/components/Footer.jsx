@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { api } from '../lib/api.js';
-import { footer, footerMenu, mainMenu, site } from '../data/siteContent.js';
+import { footer, footerMenu, mainMenu, newsletter, site } from '../data/siteContent.js';
 
 const ICONS = {
   instagram: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1.1" fill="currentColor" stroke="none" /></svg>,
@@ -42,7 +42,7 @@ export default function Footer() {
       <div className="am-ft__in">
         <div className="am-ft__brand">
           <Link href="/" style={{ display: 'flex', gap: 12, alignItems: 'center', padding: 0, opacity: 1 }}>
-            <span className="am-emb"><img src="/assets/ameza-emblem.png" alt="" /></span>
+            <span className="am-emb">{site.logoImage ? <img className="am-hd__img" src={site.logoImage} alt={`${site.brand} logo`} /> : <img src="/assets/ameza-emblem.png" alt="" />}</span>
             <span className="am-wm"><b>{site.brand}</b><small>{site.tagline}</small></span>
           </Link>
           <p style={{ marginTop: 18, maxWidth: 340 }}>{footer.about}</p>
@@ -55,9 +55,9 @@ export default function Footer() {
         <div><h4>{footer.title1}</h4>{mainMenu.map(l => <Ext key={l.url} item={l} />)}</div>
         <div><h4>{footer.title2}</h4>{footerMenu.map(l => <Ext key={l.url} item={l} />)}</div>
         <div className="am-ft__nl">
-          <h4>Stay in the loop</h4>
+          <h4>{footer.newsletterHeading}</h4>
           <p>{footer.nlText}</p>
-          <NewsletterForm id="am-ft-nl" button="Join" />
+          <NewsletterForm id="am-ft-nl" button={newsletter.button} />
           {site.phone && <p style={{ marginTop: 16 }}>📞 {site.phone}</p>}
           {site.email && <p>✉️ {site.email}</p>}
           {site.address && <p>📍 {site.address}</p>}

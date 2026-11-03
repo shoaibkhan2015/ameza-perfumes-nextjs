@@ -7,6 +7,7 @@ import { fmtDate, money } from '../lib/format.js';
 import { whatsappNumber } from '../data/siteContent.js';
 
 const label = s => ({ pending: 'Pending', paid: 'Paid', refunded: 'Refunded', unfulfilled: 'Unfulfilled', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' }[s] || s);
+const paymentLabel = method => ({ cod: 'Cash on delivery', jazzcash: 'JazzCash manual transfer', easypaisa: 'Easypaisa manual transfer' }[method] || method || 'Cash on delivery');
 
 // Order page — used both as the "thank you" page and as the account order detail (templates/customers/order.liquid)
 export default function Order({ thanks }) {
@@ -31,9 +32,12 @@ export default function Order({ thanks }) {
       {thanks && <p className="am-eb">Thank you</p>}
       <h1>{thanks ? confirmation === 'pending' ? 'Order received — awaiting confirmation' : confirmation === 'rejected' ? 'Order not confirmed' : 'Your order is confirmed' : `Order #${o.orderNumber}`}</h1>
       <p>{thanks && <>Order <b>#{o.orderNumber}</b> · </>}Placed on {fmtDate(o.createdAt)} · {label(o.paymentStatus)} · {confirmation === 'pending' ? 'Awaiting confirmation' : confirmation === 'rejected' ? 'Not confirmed' : label(o.fulfillmentStatus)}</p>
-      {thanks && confirmation === 'pending' && <p>Your cash-on-delivery order is waiting for the store to confirm. You can message us on WhatsApp to request confirmation.</p>}
-      {thanks && confirmation === 'confirmed' && <p>Your order is confirmed. Please keep <b>{money(o.total)}</b> ready in cash when it arrives.</p>}
+      {thanks && confirmation === 'pending' && o.paymentMethod === 'cod' && <p>Your cash-on-delivery order is waiting for the store to confirm. You can message us on WhatsApp to request confirmation.</p>}
+      {thanks && confirmation === 'pending' && o.paymentMethod !== 'cod' && <p>Your {paymentLabel(o.paymentMethod)} is waiting for manual payment verification. Reference submitted: <b>{o.paymentReference || 'Not provided'}</b>. We will confirm the order after checking the transfer.</p>}
+      {thanks && confirmation === 'confirmed' && o.paymentMethod === 'cod' && <p>Your order is confirmed. Please keep <b>{money(o.total)}</b> ready in cash when it arrives.</p>}
+      {thanks && confirmation === 'confirmed' && o.paymentMethod !== 'cod' && <p>Your order is confirmed. {o.paymentStatus === 'paid' ? 'Your wallet payment has been verified.' : 'The store will contact you about the payment status.'}</p>}
       {thanks && confirmation === 'rejected' && <p>This order was not confirmed. Please contact us if you think this is a mistake.</p>}
+      <p>Payment method: <b>{paymentLabel(o.paymentMethod)}</b></p>
       {thanks && confirmation === 'pending' && whatsappUrl && <p><a className="am-btn" href={whatsappUrl} target="_blank" rel="noreferrer">Message us on WhatsApp</a></p>}
       <table>
         <thead><tr><th>Product</th><th>Qty</th><th>Total</th></tr></thead>

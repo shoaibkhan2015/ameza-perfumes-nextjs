@@ -17,6 +17,7 @@ create table if not exists public.products (
   product_type     text not null default '',
   tags             text[] not null default '{}',
   images           text[] not null default '{}',   -- full image URLs (Supabase Storage / CDN)
+  fragrance        jsonb not null default '{}'::jsonb,
   published        boolean not null default true,
   sort_order       int not null default 0,         -- "Featured" order
   best_selling     int not null default 0,         -- higher = sells more
@@ -55,6 +56,12 @@ create table if not exists public.collection_products (
 -- ---------------------------------------------------------------------------
 --  Content
 -- ---------------------------------------------------------------------------
+create table if not exists public.site_content (
+  id         text primary key default 'default' check (id = 'default'),
+  content    jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.pages (
   id           uuid primary key default gen_random_uuid(),
   handle       text not null unique,
@@ -141,12 +148,14 @@ create table if not exists public.orders (
   discount_code      text,
   total              numeric(12,2) not null,
   payment_method     text not null default 'cod',
+  payment_reference text,
   payment_status     text not null default 'pending',   -- pending | paid | refunded
   confirmation_status text not null default 'pending', -- pending | confirmed | rejected
   fulfillment_status text not null default 'unfulfilled', -- unfulfilled | shipped | delivered | cancelled
   note               text,
   created_at         timestamptz not null default now()
 );
+alter table public.orders add column if not exists payment_reference text;
 -- Existing installations keep their prior orders as confirmed; new orders wait for admin approval.
 alter table public.orders add column if not exists confirmation_status text not null default 'confirmed';
 alter table public.orders alter column confirmation_status set default 'pending';
@@ -198,6 +207,7 @@ alter table public.products               enable row level security;
 alter table public.product_variants       enable row level security;
 alter table public.collections            enable row level security;
 alter table public.collection_products    enable row level security;
+alter table public.site_content           enable row level security;
 alter table public.pages                  enable row level security;
 alter table public.blogs                  enable row level security;
 alter table public.articles               enable row level security;
@@ -218,12 +228,15 @@ drop policy if exists "public read collections" on public.collections;
 create policy "public read collections" on public.collections        for select using (true);
 drop policy if exists "public read coll products" on public.collection_products;
 create policy "public read coll products" on public.collection_products for select using (true);
+drop policy if exists "public read site content" on public.site_content;
+create policy "public read site content" on public.site_content for select using (true);
 drop policy if exists "public read pages"      on public.pages;
 create policy "public read pages"      on public.pages               for select using (published);
 drop policy if exists "public read blogs"      on public.blogs;
 create policy "public read blogs"      on public.blogs               for select using (true);
 drop policy if exists "public read articles"   on public.articles;
 create policy "public read articles"   on public.articles            for select using (published);
+grant select on public.site_content to anon, authenticated;
 
 -- a signed-in customer can only see / edit their own data
 drop policy if exists "own profile read"   on public.profiles;

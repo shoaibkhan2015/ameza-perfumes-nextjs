@@ -13,6 +13,17 @@
 .co__form input,.co__form textarea{padding:12px 14px;border-radius:12px;border:1.5px solid rgba(23,20,15,.2);font:inherit;background:#fff;color:#17140f;text-transform:none;letter-spacing:0}
 .co__row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:560px){.co__row2{grid-template-columns:1fr}}
 .co__pay{display:flex;gap:12px;align-items:center;border:1.5px solid #d9a93f;background:#fffaf0;border-radius:14px;padding:14px 16px;font-size:14px}
+.co__payment-options{display:grid;gap:10px}
+.co__form label.co__payment-option{grid-template-columns:auto 1fr;align-items:start;gap:12px;padding:14px 16px;border:1.5px solid rgba(184,134,43,.25);border-radius:14px;background:#fff;font-size:14px;letter-spacing:0;text-transform:none}
+.co__payment-option.is-selected{border-color:#d9a93f;background:#fffaf0}
+.co__payment-option input[type=radio]{width:17px;height:17px;margin:2px 0 0;accent-color:#b8862b}
+.co__payment-option span{display:grid;gap:4px}
+.co__payment-option small{font-size:12px;color:#756c5b;line-height:1.5}
+.co__wallet-details{display:grid;gap:8px;padding:16px;border:1px solid rgba(184,134,43,.25);border-radius:14px;background:#fffaf0;font-size:14px}
+.co__wallet-details p{margin:0}
+.co__wallet-details img{width:min(220px,100%);height:auto;justify-self:start}
+.co__wallet-details label{margin-top:8px}
+.co__wallet-details label input{margin-top:4px}
 .co__code{display:flex;gap:8px;margin-bottom:12px}.co__code input{flex:1;min-width:0;padding:11px 12px;border-radius:12px;border:1.5px solid rgba(23,20,15,.2);font:inherit}
 .co__code button{padding:0 16px;border-radius:12px;border:0;background:#0b1530;color:#f6dc8e;font:600 12px system-ui;cursor:pointer}
 .cp__line.disc{color:#1b5e20}

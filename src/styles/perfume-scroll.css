@@ -54,7 +54,7 @@
 @media(min-width:1000px){.ps__word{display:block}}
 
 /* ===== POLISH v2: ivory + champagne gold + sapphire navy ===== */
-:root,.am-sec,.ps{--ink:#17140f;--ivory:#fbf7ef;--sand:#f3ead9;--navy:#0b1530;--navy2:#1a2a5c;--g1:#f6dc8e;--g2:#d9a93f;--g3:#b8862b;--sap:#1d3f8a}
+:root{--ink:#17140f;--ivory:#fbf7ef;--sand:#f3ead9;--navy:#0b1530;--navy2:#1a2a5c;--g1:#f6dc8e;--g2:#d9a93f;--g3:#b8862b;--sap:#1d3f8a}
 .am-sec{background:var(--ivory);color:var(--ink)}
 #best{background:linear-gradient(180deg,#f6eddb,var(--ivory))}
 .am-h{font-weight:600;color:var(--ink);letter-spacing:.02em}

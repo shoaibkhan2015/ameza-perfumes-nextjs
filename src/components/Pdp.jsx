@@ -3,14 +3,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Countdown from './Countdown.jsx';
 import { useCart } from '../lib/cart.jsx';
-import { bottleUrl, discountPct, money } from '../lib/format.js';
+import { bottleKey, bottleUrl, discountPct, money } from '../lib/format.js';
+import { getProductNoteRows } from '../lib/fragrance.js';
 import * as C from '../data/siteContent.js';
 
 // Port of snippets/am-note-row.liquid
-const NoteRow = ({ name, k, pct, i }) => (
+const NoteRow = ({ name, k, i }) => (
   <div className="sp-r" style={{ '--i': i }}>
     <span className="sp-ic"><img src={`/assets/ing-${k}.svg`} alt="" width="46" height="46" loading="lazy" /></span>
-    <div className="sp-b"><div className="sp-bl"><span>{name}</span><b><i data-pct={pct}>0</i>%</b></div><div className="sp-tr"><i className="sp-f" style={{ '--w': pct + '%' }} /></div></div>
+    <div className="sp-b"><div className="sp-bl sp-note-name"><span>{name}</span></div></div>
   </div>
 );
 const Bar = ({ label, v }) => (
@@ -25,8 +26,10 @@ export function PdpMain({ product }) {
   const { add } = useCart();
   const router = useRouter();
   const profile = C.profileFor(product.handle);
-  const [lon, prj, fre] = profile ? profile.perf : [C.pdp.longevity, C.pdp.projection, C.pdp.freshness];
-  const rows = profile ? profile.notes : null;
+  const fragrance = product.fragrance || {};
+  const profilePerf = Array.isArray(fragrance.perf) ? fragrance.perf : profile?.perf || [C.pdp.longevity, C.pdp.projection, C.pdp.freshness];
+  const [lon, prj, fre] = profilePerf;
+  const rows = getProductNoteRows(fragrance, profile, product.handle === 'drift' ? C.pdp.notes : []);
 
   const [vid, setVid] = useState(product.selectedVariantId);
   useEffect(() => setVid(product.selectedVariantId), [product.id, product.selectedVariantId]);
@@ -82,9 +85,7 @@ export function PdpMain({ product }) {
               {GROUPS.map(([g, sub]) => (
                 <div className="sp-g" key={g}>
                   <div className="sp-gh"><b>{g}</b><small>{sub}</small></div>
-                  {rows
-                    ? rows.map((r, i) => r.group === g && <NoteRow key={i} name={r.name} k={r.key} pct={r.pct} i={i} />)
-                    : C.pdp.notes.map((r, i) => r.group === g && <NoteRow key={i} name={r.name} k={r.key} pct={r.pct} i={i} />)}
+                  {rows.map((r, i) => r.group === g && <NoteRow key={i} name={r.name} k={r.key} i={i} />)}
                 </div>
               ))}
             </div>
@@ -135,16 +136,38 @@ export function PdpMain({ product }) {
 
 // Port of sections/am-pdp-story.liquid
 export function PdpStory({ product }) {
-  const s = C.pdpStory, p = C.profileFor(product.handle)?.story;
-  const h = p?.h ?? s.heading, t = p?.t ?? s.text, q = p?.q ?? s.quote;
+  const s = C.pdpStory;
+  const story = product.fragrance?.story || {};
+  const heading = String(story.heading || '').trim() || product.title;
+  const fallbackDescription = String(product.descriptionHtml || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const description = String(story.description || '').trim() || fallbackDescription || product.title;
+  const paragraphs = description.split(/\|\||\r?\n\s*\r?\n/).map(text => text.trim()).filter(Boolean);
+  const fallbackImage = Array.isArray(product.images)
+    ? product.images.find(image => typeof image === 'string' && image.trim())?.trim() || ''
+    : '';
+  const initialImage = String(story.image || '').trim() || fallbackImage;
+  const [storyImage, setStoryImage] = useState(initialImage);
+  useEffect(() => setStoryImage(initialImage), [product.id, initialImage]);
+  const productBottleKey = bottleKey(product.handle);
+  const bottleImage = !storyImage && productBottleKey === product.handle ? bottleUrl(product.handle) : '';
+  const stats = Array.isArray(story.stats)
+    ? story.stats.filter(stat => Array.isArray(stat) && String(stat[0] || '').trim() && String(stat[1] || '').trim())
+    : s.stats;
   return (
-    <section className="am-sec"><div className="am-wrap"><div className="st">
-      <div className="st-vis" data-reveal><div className="st-bot" style={{ '--bot': `url('${bottleUrl(product.handle)}')` }} /></div>
+    <section className="am-sec"><div className="am-wrap"><div className="st" style={!storyImage && !bottleImage ? { gridTemplateColumns: '1fr' } : undefined}>
+      {(storyImage || bottleImage) && <div className="st-vis" data-reveal>
+        {storyImage
+          ? <img src={storyImage} alt={`${product.title} story`} loading="lazy" onError={() => setStoryImage(current => current === fallbackImage ? '' : fallbackImage)} />
+          : <div className="st-bot" style={{ '--bot': `url('${bottleImage}')` }} />}
+      </div>}
       <div data-reveal style={{ '--i': 2 }}>
-        <p className="am-eb">{s.eyebrow}</p><h2 className="am-h">{h}</h2>
-        <div className="st" style={{ display: 'block', marginTop: 18 }}><p>{t.split('||').map((x, i) => <Fragment key={i}>{i > 0 && <><br /><br /></>}{x}</Fragment>)}</p></div>
-        <blockquote>{q}</blockquote>
-        <div className="st-stats">{s.stats.map(([b, l]) => <div key={l}><b>{b}</b><small>{l}</small></div>)}</div>
+        <p className="am-eb">{String(story.eyebrow || '').trim() || s.eyebrow}</p><h2 className="am-h">{heading}</h2>
+        <div className="st" style={{ display: 'block', marginTop: 18 }}><p>{paragraphs.map((text, i) => <Fragment key={i}>{i > 0 && <><br /><br /></>}{text}</Fragment>)}</p></div>
+        {String(story.quote || '').trim() && <blockquote>{String(story.quote).trim()}</blockquote>}
+        {stats.length > 0 && <div className="st-stats">{stats.map(([value, label], i) => <div key={`${label}-${i}`}><b>{value}</b><small>{label}</small></div>)}</div>}
       </div>
     </div></div></section>
   );
@@ -155,13 +178,13 @@ export function PdpReviews() {
   const r = C.pdpReviews;
   return (
     <section className="am-sec am-rev" id="reviews"><div className="am-wrap">
-      <div className="am-head" data-reveal><div><p className="am-eb">Customer reviews</p><h2 className="am-h">What buyers say about this fragrance</h2></div></div>
+      <div className="am-head" data-reveal><div><p className="am-eb">{r.eyebrow}</p><h2 className="am-h">{r.heading}</h2></div></div>
       <div className="rv">
         <div className="rv-sum" data-reveal>
           <div className="am-sum">{r.score}</div><span className="am-stars">★★★★★</span>
           <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 10 }}>Based on {r.count} reviews</div>
           {[5, 4, 3, 2, 1].map(n => <div className="rb" key={n}>{n}★<i><u style={{ '--w': r['p' + n] + '%' }} /></i><span>{r['p' + n]}%</span></div>)}
-          <a className="am-btn" style={{ width: '100%', marginTop: 14 }} href="#">Write a review</a>
+          <a className="am-btn" style={{ width: '100%', marginTop: 14 }} href="#">{r.writeReviewLabel}</a>
         </div>
         <div className="rv-list">
           {r.items.map((b, i) => (

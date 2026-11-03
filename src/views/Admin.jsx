@@ -4,12 +4,18 @@ import { api } from '../lib/api.js';
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtDate, money } from '../lib/format.js';
+import { applySiteAppearance, getSiteContentSnapshot, setSiteContentOverrides } from '../data/siteContent.js';
+import SiteContentEditor from '../components/SiteContentEditor.jsx';
 import '../styles/admin.css';
 
 const BUCKET = 'ameza-product-images';
 const ORDER_STATUSES = ['unfulfilled', 'shipped', 'delivered', 'cancelled'];
 const LOW_STOCK_LIMIT = 5;
-const emptyForm = () => ({ title: '', price: '', description: '', category: '', stock: '0', images: [], published: true, variantId: '', collectionIds: [] });
+const emptyStory = () => ({
+  eyebrow: '', heading: '', description: '', image: '', quote: '',
+  stats: getSiteContentSnapshot().pdpStory.stats.map(([value, label]) => [value, label]),
+});
+const emptyForm = () => ({ title: '', price: '', description: '', category: '', stock: '0', images: [], published: true, variantId: '', collectionIds: [], fragrance: { topNotes: '', heartNotes: '', baseNotes: '', family: '', concentration: '', longevity: '', sillage: '', ingredients: '', description: '', story: emptyStory() } });
 const errorMessage = error => error?.message || 'Something went wrong. Please try again.';
 const collectionLabel = collection => ({
   men: 'For Him',
@@ -17,25 +23,29 @@ const collectionLabel = collection => ({
   'gift-sets': 'Unisex',
 }[collection.handle] || collection.title);
 
-function productHandle(title) {
-  return title.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `perfume-${Date.now()}`;
-}
+const slugifyHandle = title => title.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const productHandle = title => slugifyHandle(title) || `perfume-${Date.now()}`;
 
 export default function Admin() {
   const { enabled, ready, user, signIn, signOut } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [collections, setCollections] = useState([]);
+  const [collectionForm, setCollectionForm] = useState({ title: '', handle: '', description: '', image: '' });
+  const [selectedCollection, setSelectedCollection] = useState(null);
   const [collectionLinks, setCollectionLinks] = useState([]);
   const [section, setSection] = useState('products');
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [contentForm, setContentForm] = useState(() => getSiteContentSnapshot());
   const [files, setFiles] = useState([]);
+  const [storyImageFile, setStoryImageFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -46,31 +56,6 @@ export default function Admin() {
     (product.product_variants || []).some(variant => variant.inventory_quantity <= LOW_STOCK_LIMIT));
   const outOfStockVariants = products.flatMap(product => product.product_variants || [])
     .filter(variant => variant.inventory_quantity <= 0).length;
-  const salesSince = new Date();
-  salesSince.setDate(salesSince.getDate() - 29);
-  const periodOrders = orders.filter(order => new Date(order.created_at) >= salesSince);
-  const confirmedPeriodOrders = periodOrders.filter(order =>
-    order.confirmation_status === 'confirmed' && order.fulfillment_status !== 'cancelled');
-  const periodSales = confirmedPeriodOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
-  const cancelledPeriodOrders = periodOrders.filter(order =>
-    order.confirmation_status === 'rejected' || order.fulfillment_status === 'cancelled');
-  const fulfilledPeriodOrders = periodOrders.filter(order =>
-    order.fulfillment_status === 'shipped' || order.fulfillment_status === 'delivered');
-  const salesByDay = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    date.setDate(date.getDate() - (6 - index));
-    const sales = confirmedPeriodOrders
-      .filter(order => new Date(order.created_at).toDateString() === date.toDateString())
-      .reduce((sum, order) => sum + Number(order.total || 0), 0);
-    return { label: date.toLocaleDateString('en', { weekday: 'short' }), sales };
-  });
-  const maxDailySales = Math.max(...salesByDay.map(day => day.sales), 1);
-  const topProducts = orders
-    .filter(order => order.confirmation_status === 'confirmed' && order.fulfillment_status !== 'cancelled')
-    .flatMap(order => order.order_items || [])
-    .reduce((totals, item) => totals.set(item.title, (totals.get(item.title) || 0) + item.quantity), new Map());
-  const bestSellers = [...topProducts].sort((a, b) => b[1] - a[1]).slice(0, 3);
 
   useEffect(() => {
     let active = true;
@@ -100,21 +85,24 @@ export default function Admin() {
         } catch (statusError) {
           setStoreWarning(`Could not verify the storefront catalogue source: ${errorMessage(statusError)}`);
         }
-        const [productResult, orderResult, collectionResult, collectionLinkResult] = await Promise.all([
+        const [productResult, orderResult, collectionResult, collectionLinkResult, siteContentResult] = await Promise.all([
           supabase.from('products').select('*, product_variants(*)').order('created_at', { ascending: false }),
           supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }).limit(100),
-          supabase.from('collections').select('id, handle, title, sort_order').order('sort_order'),
+          supabase.from('collections').select('id, handle, title, description, image, sort_order').order('sort_order'),
           supabase.from('collection_products').select('collection_id, product_id'),
+          supabase.from('site_content').select('content').eq('id', 'default').maybeSingle(),
         ]);
         if (productResult.error) throw productResult.error;
         if (orderResult.error) throw orderResult.error;
         if (collectionResult.error) throw collectionResult.error;
         if (collectionLinkResult.error) throw collectionLinkResult.error;
+        if (siteContentResult.error) throw siteContentResult.error;
         if (!active) return;
         setProducts(productResult.data || []);
         setOrders(orderResult.data || []);
         setCollections((collectionResult.data || []).filter(collection => collection.handle !== 'all'));
         setCollectionLinks(collectionLinkResult.data || []);
+        setContentForm(getSiteContentSnapshot(siteContentResult.data?.content));
       } catch (loadError) {
         if (active) setError(errorMessage(loadError));
       } finally {
@@ -129,12 +117,15 @@ export default function Admin() {
     setSelected(null);
     setForm(emptyForm());
     setFiles([]);
+    setStoryImageFile(null);
     setError('');
     setNotice('');
   }
 
   function editProduct(product) {
     const variant = [...(product.product_variants || [])].sort((a, b) => a.position - b.position)[0];
+    const fragrance = product.fragrance || {};
+    const story = fragrance.story || {};
     setSelected(product);
     setForm({
       title: product.title,
@@ -146,16 +137,38 @@ export default function Admin() {
       published: product.published,
       variantId: variant?.id || '',
       collectionIds: collectionLinks.filter(link => link.product_id === product.id).map(link => link.collection_id),
+      fragrance: {
+        topNotes: fragrance.topNotes || fragrance.top_notes || '',
+        heartNotes: fragrance.heartNotes || fragrance.heart_notes || '',
+        baseNotes: fragrance.baseNotes || fragrance.base_notes || '',
+        family: fragrance.family || '',
+        concentration: fragrance.concentration || '',
+        longevity: fragrance.longevity || '',
+        sillage: fragrance.sillage || '',
+        ingredients: fragrance.ingredients || '',
+        description: fragrance.description || '',
+        story: {
+          eyebrow: story.eyebrow || '',
+          heading: story.heading || '',
+          description: story.description || '',
+          image: story.image || '',
+          quote: story.quote || '',
+          stats: Array.isArray(story.stats)
+            ? story.stats.map(stat => Array.isArray(stat) ? [stat[0] || '', stat[1] || ''] : ['', '']).slice(0, 3)
+            : emptyStory().stats,
+        },
+      },
     });
     setFiles([]);
+    setStoryImageFile(null);
     setError('');
     setNotice('');
   }
 
-  async function uploadImages() {
+  async function uploadImages(imageFiles = files) {
     const uploaded = [];
     try {
-      for (const file of files) {
+      for (const file of imageFiles) {
         const safeName = file.name.replace(/[^\w.-]+/g, '-');
         const path = `${user.id}/${crypto.randomUUID()}-${safeName}`;
         const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
@@ -187,13 +200,36 @@ export default function Admin() {
       if (!form.title.trim() || !Number.isFinite(price) || price < 0 || !Number.isInteger(stock) || stock < 0) {
         throw new Error('Enter a product name, a valid non-negative PKR price, and a whole-number stock quantity.');
       }
-      const uploaded = await uploadImages();
+      const allUploaded = await uploadImages([...files, ...(storyImageFile ? [storyImageFile] : [])]);
+      const uploaded = allUploaded.slice(0, files.length);
+      const storyImage = storyImageFile ? allUploaded[files.length] : form.fragrance.story.image.trim();
       const values = {
         title: form.title.trim(),
         description_html: form.description,
         product_type: form.category.trim(),
         images: [...form.images, ...uploaded],
         published: form.published,
+        fragrance: {
+          topNotes: form.fragrance.topNotes.trim(),
+          heartNotes: form.fragrance.heartNotes.trim(),
+          baseNotes: form.fragrance.baseNotes.trim(),
+          family: form.fragrance.family.trim(),
+          concentration: form.fragrance.concentration.trim(),
+          longevity: form.fragrance.longevity.trim(),
+          sillage: form.fragrance.sillage.trim(),
+          ingredients: form.fragrance.ingredients.trim(),
+          description: form.fragrance.description.trim(),
+          story: {
+            eyebrow: form.fragrance.story.eyebrow.trim(),
+            heading: form.fragrance.story.heading.trim(),
+            description: form.fragrance.story.description.trim(),
+            image: storyImage || '',
+            quote: form.fragrance.story.quote.trim(),
+            stats: form.fragrance.story.stats
+              .map(([value, label]) => [value.trim(), label.trim()])
+              .filter(([value, label]) => value && label),
+          },
+        },
       };
       let product = selected;
       if (selected) {
@@ -235,6 +271,7 @@ export default function Admin() {
       setSelected(null);
       setForm(emptyForm());
       setFiles([]);
+      setStoryImageFile(null);
       const [productResult, linkResult] = await Promise.all([
         supabase.from('products').select('*, product_variants(*)').order('created_at', { ascending: false }),
         supabase.from('collection_products').select('collection_id, product_id'),
@@ -281,6 +318,25 @@ export default function Admin() {
     }
   }
 
+  async function verifyOrderPayment(order) {
+    if (!window.confirm(`Have you verified the ${order.payment_method} transfer for order #${order.order_number} in the receiving account?`)) return;
+    setError('');
+    setNotice('');
+    try {
+      const { data, error: paymentError } = await supabase.from('orders')
+        .update({ payment_status: 'paid' })
+        .eq('id', order.id)
+        .eq('payment_status', 'pending')
+        .select()
+        .single();
+      if (paymentError) throw paymentError;
+      setOrders(current => current.map(item => item.id === order.id ? { ...item, ...data } : item));
+      setNotice(`Payment for order #${order.order_number} marked as verified.`);
+    } catch (paymentError) {
+      setError(errorMessage(paymentError));
+    }
+  }
+
   async function decideOrder(order, decision) {
     setError('');
     setNotice('');
@@ -305,6 +361,109 @@ export default function Admin() {
     }
   }
 
+  async function saveWebsiteContent(event) {
+    event.preventDefault();
+    setError('');
+    setNotice('');
+    setBusy(true);
+    try {
+      const payload = contentForm;
+      const { error: saveError } = await supabase.from('site_content').upsert({
+        id: 'default',
+        content: payload,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+      if (saveError) throw saveError;
+      setSiteContentOverrides(payload);
+      applySiteAppearance(payload.appearance);
+      setNotice('Storefront content saved. Reload the storefront to see the updates.');
+    } catch (contentError) {
+      setError(errorMessage(contentError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveCollection(event) {
+      event.preventDefault();
+      setError('');
+      setNotice('');
+      setBusy(true);
+      try {
+        const title = collectionForm.title.trim();
+        const handle = slugifyHandle(collectionForm.handle.trim() || title);
+        if (!title) throw new Error('Enter a collection name.');
+        if (!handle) throw new Error('Use a collection name with at least one letter or number.');
+        if (handle === 'all') throw new Error('The handle "all" is reserved for the full catalogue.');
+        const values = {
+          title,
+          handle,
+          description: collectionForm.description.trim(),
+          image: collectionForm.image.trim() || null,
+        };
+        const result = selectedCollection
+          ? await supabase.from('collections').update(values).eq('id', selectedCollection.id).select('id, handle, title, description, image, sort_order').single()
+          : await supabase.from('collections').insert({ ...values, sort_order: collections.length }).select('id, handle, title, description, image, sort_order').single();
+        if (result.error) throw result.error;
+        setCollections(current => selectedCollection
+          ? current.map(item => item.id === selectedCollection.id ? result.data : item)
+          : [...current, result.data].sort((a, b) => a.sort_order - b.sort_order));
+        setSelectedCollection(null);
+        setCollectionForm({ title: '', handle: '', description: '', image: '' });
+        setNotice(selectedCollection ? 'Collection updated.' : 'Collection created. Assign perfumes to it to make it show products.');
+      } catch (collectionError) {
+        setError(errorMessage(collectionError));
+      } finally {
+        setBusy(false);
+      }
+    }
+
+  async function deleteCollection(collection) {
+      if (!window.confirm(`Delete "${collection.title}"? Products will remain, but their collection assignment will be removed.`)) return;
+      setError('');
+      setNotice('');
+      try {
+        const { error: deleteError } = await supabase.from('collections').delete().eq('id', collection.id);
+        if (deleteError) throw deleteError;
+        setCollections(current => current.filter(item => item.id !== collection.id));
+        setCollectionLinks(current => current.filter(link => link.collection_id !== collection.id));
+        if (selectedCollection?.id === collection.id) {
+          setSelectedCollection(null);
+          setCollectionForm({ title: '', handle: '', description: '', image: '' });
+        }
+        setNotice(`Collection "${collection.title}" deleted.`);
+      } catch (deleteError) {
+        setError(errorMessage(deleteError));
+      }
+    }
+
+  function editCollection(collection) {
+      setSelectedCollection(collection);
+      setCollectionForm({
+        title: collection.title,
+        handle: collection.handle,
+        description: collection.description || '',
+        image: collection.image || '',
+      });
+      setError('');
+      setNotice('');
+    }
+
+  async function uploadContentImage(file) {
+    if (!file.type.startsWith('image/')) throw new Error('Choose an image file.');
+    if (file.size > 10 * 1024 * 1024) throw new Error('Images must be smaller than 10 MB.');
+    const safeName = file.name.replace(/[^\w.-]+/g, '-');
+    const path = `site-content/${user.id}/${crypto.randomUUID()}-${safeName}`;
+    setBusy(true);
+    try {
+      const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
+      if (uploadError) throw uploadError;
+      return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submitLogin(event) {
     event.preventDefault();
     setError('');
@@ -326,7 +485,32 @@ export default function Admin() {
           <p className="admin-eyebrow">AMÉZA</p><h1>Admin sign in</h1>
           {error && <p className="admin-alert admin-alert--error" role="alert">{error}</p>}
           <label>Email<input type="email" autoComplete="username" required value={email} onChange={event => setEmail(event.target.value)} /></label>
-          <label>Password<input type="password" autoComplete="current-password" required value={password} onChange={event => setPassword(event.target.value)} /></label>
+          <label>Password
+            <span className="admin-password-field">
+              <input type={passwordVisible ? 'text' : 'password'} autoComplete="current-password" required value={password} onChange={event => setPassword(event.target.value)} />
+              <button
+                className="admin-password-toggle"
+                type="button"
+                aria-label={passwordVisible ? 'Hide password' : 'Show password'}
+                aria-pressed={passwordVisible}
+                onClick={() => setPasswordVisible(visible => !visible)}
+              >
+                {passwordVisible ? (
+                  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 3l18 18" />
+                    <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                    <path d="M9.9 5.2A10.8 10.8 0 0 1 12 5c5.2 0 8.5 5.1 9 6-.3.6-1.6 2.5-3.7 3.9" />
+                    <path d="M6.2 6.2C4.1 7.5 2.8 9.5 3 11c.5.9 3.8 8 9 8 1.1 0 2.1-.3 3-.8" />
+                  </svg>
+                ) : (
+                  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2.5 12s3.3-7 9.5-7 9.5 7 9.5 7-3.3 7-9.5 7-9.5-7-9.5-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </span>
+          </label>
           <button className="admin-button" type="submit">Sign in</button>
           <a href="/">Return to storefront</a>
         </form>
@@ -354,24 +538,13 @@ export default function Admin() {
       </header>
       <nav className="admin-tabs" aria-label="Dashboard sections">
         <button className={section === 'products' ? 'is-active' : ''} onClick={() => setSection('products')}>Perfumes <span>{products.length}</span></button>
+        <button className={section === 'collections' ? 'is-active' : ''} onClick={() => setSection('collections')}>Collections <span>{collections.length}</span></button>
         <button className={section === 'orders' ? 'is-active' : ''} onClick={() => setSection('orders')}>Orders <span>{orders.length}{pendingOrders.length > 0 ? ` · ${pendingOrders.length} pending` : ''}</span></button>
+        <button className={section === 'content' ? 'is-active' : ''} onClick={() => setSection('content')}>Website Content</button>
       </nav>
       <section className="admin-overview" aria-label="Store overview">
-        <article className="admin-panel admin-metric"><p className="admin-eyebrow">Last 30 days</p><strong>{money(periodSales)}</strong><span>Confirmed sales · {confirmedPeriodOrders.length} orders</span></article>
         <article className="admin-panel admin-metric"><p className="admin-eyebrow">Needs attention</p><strong>{pendingOrders.length}</strong><span>Orders awaiting confirmation</span></article>
         <article className="admin-panel admin-metric"><p className="admin-eyebrow">Inventory</p><strong>{lowStockProducts.length}</strong><span>Low-stock products · {outOfStockVariants} variants out of stock</span></article>
-        <article className="admin-panel admin-metric"><p className="admin-eyebrow">Top seller</p><strong>{bestSellers[0]?.[0] || '—'}</strong><span>{bestSellers[0] ? `${bestSellers[0][1]} units · latest ${orders.length} orders` : 'No confirmed sales yet'}</span></article>
-        <article className="admin-panel admin-sales-chart">
-          <div><p className="admin-eyebrow">Confirmed sales · last 7 days</p><div className="admin-sales-chart__bars">
-            {salesByDay.map(day => <div className="admin-sales-chart__day" key={day.label}>
-              <div className="admin-sales-chart__track" title={`${day.label}: ${money(day.sales)}`}>
-                <span style={{ height: `${Math.max(day.sales ? 8 : 0, (day.sales / maxDailySales) * 100)}%` }} />
-              </div>
-              <small>{day.label}</small>
-            </div>)}
-          </div></div>
-          <div className="admin-fulfillment-summary"><p className="admin-eyebrow">Last 30 days</p><b>{fulfilledPeriodOrders.length} fulfilled</b><span>{cancelledPeriodOrders.length} cancelled / rejected</span></div>
-        </article>
       </section>
       {error && <p className="admin-alert admin-alert--error" role="alert">{error}</p>}
       {notice && <p className="admin-alert admin-alert--success" role="status">{notice}</p>}
@@ -415,6 +588,41 @@ export default function Admin() {
                 )) : <p className="admin-muted">No collections are configured yet.</p>}
               </fieldset>
               <label>Description<textarea rows="5" value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} /></label>
+              <fieldset className="admin-collection-picker">
+                <legend>Fragrance details</legend>
+                <div className="admin-fields-row">
+                  <label>Fragrance family<input value={form.fragrance.family} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, family: event.target.value } })} placeholder="e.g. Woody, Floral" /></label>
+                  <label>Concentration<input value={form.fragrance.concentration} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, concentration: event.target.value } })} placeholder="e.g. EDP" /></label>
+                </div>
+                <div className="admin-fields-row">
+                  <label>Longevity<input value={form.fragrance.longevity} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, longevity: event.target.value } })} placeholder="e.g. 8–10 hours" /></label>
+                  <label>Sillage<input value={form.fragrance.sillage} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, sillage: event.target.value } })} placeholder="e.g. Moderate" /></label>
+                </div>
+                <label>Top notes<textarea rows="2" value={form.fragrance.topNotes} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, topNotes: event.target.value } })} /></label>
+                <label>Heart notes<textarea rows="2" value={form.fragrance.heartNotes} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, heartNotes: event.target.value } })} /></label>
+                <label>Base notes<textarea rows="2" value={form.fragrance.baseNotes} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, baseNotes: event.target.value } })} /></label>
+                <label>Ingredients<textarea rows="2" value={form.fragrance.ingredients} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, ingredients: event.target.value } })} /></label>
+                <label>Fragrance description<textarea rows="3" value={form.fragrance.description} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, description: event.target.value } })} /></label>
+              </fieldset>
+              <fieldset className="admin-collection-picker">
+                <legend>Our Story</legend>
+                <label>Story eyebrow<input value={form.fragrance.story.eyebrow} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, story: { ...form.fragrance.story, eyebrow: event.target.value } } })} placeholder="Our story" /></label>
+                <label>Story heading / tagline<input value={form.fragrance.story.heading} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, story: { ...form.fragrance.story, heading: event.target.value } } })} /></label>
+                <label>Story description / content<textarea rows="5" value={form.fragrance.story.description} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, story: { ...form.fragrance.story, description: event.target.value } } })} /></label>
+                <label>Story quote<input value={form.fragrance.story.quote} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, story: { ...form.fragrance.story, quote: event.target.value } } })} /></label>
+                {form.fragrance.story.stats.map(([value, label], index) => (
+                  <div className="admin-fields-row" key={index}>
+                    <label>Story detail {index + 1} value<input value={value} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, story: { ...form.fragrance.story, stats: form.fragrance.story.stats.map((stat, i) => i === index ? [event.target.value, stat[1]] : stat) } } })} /></label>
+                    <label>Story detail {index + 1} label<input value={label} onChange={event => setForm({ ...form, fragrance: { ...form.fragrance, story: { ...form.fragrance.story, stats: form.fragrance.story.stats.map((stat, i) => i === index ? [stat[0], event.target.value] : stat) } } })} /></label>
+                  </div>
+                ))}
+                <label>Story image<input key={storyImageFile ? 'story-image-selected' : 'story-image-empty'} type="file" accept="image/*" onChange={event => setStoryImageFile(event.target.files?.[0] || null)} /></label>
+                {storyImageFile
+                  ? <p className="admin-muted">{storyImageFile.name} <button className="admin-text-button" type="button" onClick={() => setStoryImageFile(null)}>Clear selection</button></p>
+                  : form.fragrance.story.image
+                    ? <div className="admin-image-list"><div><img src={form.fragrance.story.image} alt="" /><button type="button" aria-label="Remove story image" onClick={() => setForm({ ...form, fragrance: { ...form.fragrance, story: { ...form.fragrance.story, image: '' } } })}>×</button></div></div>
+                    : <p className="admin-muted">If no story image is set, the storefront uses this product’s own image.</p>}
+              </fieldset>
               <label>Product images<input type="file" accept="image/*" multiple onChange={event => setFiles(Array.from(event.target.files || []))} /></label>
               {files.length > 0 && <p className="admin-muted">{files.length} image(s) ready to upload</p>}
               {form.images.length > 0 && (
@@ -444,9 +652,51 @@ export default function Admin() {
             })}</div> : <p className="admin-empty">No perfumes yet. Add your first perfume using the form.</p>}
           </section>
         </div>
-      ) : (
+      ) : section === 'collections' ? (
+        <div className="admin-products admin-collections">
+          <section className="admin-panel admin-product-form">
+            <div className="admin-panel__heading">
+              <div><p className="admin-eyebrow">{selectedCollection ? 'Edit collection' : 'Catalogue'}</p><h2>{selectedCollection ? 'Update collection' : 'Add a collection'}</h2></div>
+              {selectedCollection && <button className="admin-text-button" type="button" onClick={() => {
+                setSelectedCollection(null);
+                setCollectionForm({ title: '', handle: '', description: '', image: '' });
+              }}>Cancel edit</button>}
+            </div>
+            <form onSubmit={saveCollection}>
+              <label>Collection name<input required maxLength="120" value={collectionForm.title} onChange={event => setCollectionForm({ ...collectionForm, title: event.target.value, handle: selectedCollection ? collectionForm.handle : slugifyHandle(event.target.value) })} placeholder="e.g. Attar" /></label>
+              <label>URL handle<input required maxLength="120" value={collectionForm.handle} onChange={event => setCollectionForm({ ...collectionForm, handle: slugifyHandle(event.target.value) })} placeholder="attar" /></label>
+              <label>Description<textarea rows="4" value={collectionForm.description} onChange={event => setCollectionForm({ ...collectionForm, description: event.target.value })} /></label>
+              <label>Collection image URL<input value={collectionForm.image} onChange={event => setCollectionForm({ ...collectionForm, image: event.target.value })} placeholder="Upload an image below or paste a URL" /></label>
+              <label>Upload cover image<input type="file" accept="image/*" disabled={busy} onChange={async event => {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (!file) return;
+                try {
+                  const image = await uploadContentImage(file);
+                  setCollectionForm(current => ({ ...current, image }));
+                } catch (uploadError) {
+                  setError(errorMessage(uploadError));
+                }
+              }} /></label>
+              {collectionForm.image && <img className="admin-collection-preview" src={collectionForm.image} alt="Collection cover preview" />}
+              <button className="admin-button" type="submit" disabled={busy}>{busy ? 'Saving…' : selectedCollection ? 'Save collection' : 'Create collection'}</button>
+            </form>
+          </section>
+          <section className="admin-panel">
+            <div className="admin-panel__heading"><div><p className="admin-eyebrow">Catalogue</p><h2>Collections</h2></div><span className="admin-count">{collections.length} total</span></div>
+            {collections.length ? <div className="admin-product-list">{collections.map(collection => {
+              const productCount = collectionLinks.filter(link => link.collection_id === collection.id).length;
+              return <article className="admin-product-row" key={collection.id}>
+                <div className="admin-product-row__image">{collection.image && <img src={collection.image} alt="" />}</div>
+                <div className="admin-product-row__info"><b>{collection.title}</b><span>/collections/{collection.handle}</span><small>{productCount} assigned perfume{productCount === 1 ? '' : 's'}</small></div>
+                <div className="admin-row-actions"><button className="admin-text-button" onClick={() => editCollection(collection)}>Edit</button><button className="admin-text-button admin-text-button--danger" onClick={() => deleteCollection(collection)}>Delete</button></div>
+              </article>;
+            })}</div> : <p className="admin-empty">No collections yet. Create your first collection.</p>}
+          </section>
+        </div>
+      ) : section === 'orders' ? (
         <section className="admin-panel admin-orders">
-          <div className="admin-panel__heading"><div><p className="admin-eyebrow">Sales</p><h2>Orders</h2></div><span className="admin-count">Latest {orders.length}</span></div>
+          <div className="admin-panel__heading"><div><p className="admin-eyebrow">Orders</p><h2>Orders</h2></div><span className="admin-count">Latest {orders.length}</span></div>
           {lowStockProducts.length > 0 && <div className="admin-stock-alert">
             <b>Low stock</b>
             <span>{lowStockProducts.map(product => {
@@ -455,15 +705,19 @@ export default function Admin() {
             }).join(' · ')}</span>
           </div>}
           {orders.length ? <div className="admin-table-scroll"><table>
-            <thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Placed</th><th>Confirmation / fulfillment</th></tr></thead>
+            <thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Placed</th><th>Payment</th><th>Confirmation / fulfillment</th></tr></thead>
             <tbody>{orders.map(order => <tr key={order.id}>
-              <td><b>#{order.order_number}</b><small>{order.confirmation_status || 'confirmed'} · {order.payment_status}</small></td>
+              <td><b>#{order.order_number}</b><small>{order.confirmation_status || 'confirmed'}</small></td>
               <td>{order.email}<small>{order.phone}</small></td>
               <td>{(order.order_items || []).map(item => `${item.title} × ${item.quantity}`).join(', ')}</td>
               <td>{money(order.total)}</td><td>{fmtDate(order.created_at)}</td>
+              <td><b>{order.payment_method === 'jazzcash' ? 'JazzCash' : order.payment_method === 'easypaisa' ? 'Easypaisa' : 'Cash on delivery'}</b><small>{order.payment_status || 'pending'}{order.payment_reference ? ` · Ref: ${order.payment_reference}` : ''}</small>
+                {['jazzcash', 'easypaisa'].includes(order.payment_method) && order.confirmation_status !== 'rejected' && order.payment_status !== 'paid' && order.payment_reference && <button className="admin-button" type="button" onClick={() => verifyOrderPayment(order)}>Mark payment received</button>}
+              </td>
               <td>
                 {order.confirmation_status === 'pending' && <div className="admin-order-actions">
-                  <button className="admin-button" onClick={() => decideOrder(order, 'confirmed')}>Confirm</button>
+                  {(order.payment_method === 'cod' || order.payment_status === 'paid') && <button className="admin-button" onClick={() => decideOrder(order, 'confirmed')}>Confirm</button>}
+                  {order.payment_method !== 'cod' && order.payment_status !== 'paid' && <small>Verify payment before confirming.</small>}
                   <button className="admin-button admin-button--quiet" onClick={() => {
                     if (window.confirm(`Reject order #${order.order_number}? Its reserved stock will be returned.`)) decideOrder(order, 'rejected');
                   }}>Reject</button>
@@ -474,7 +728,55 @@ export default function Admin() {
               </td>
             </tr>)}</tbody>
           </table></div> : <p className="admin-empty">No orders have been placed yet.</p>}
-          {bestSellers.length > 0 && <div className="admin-best-sellers"><b>Best sellers in latest {orders.length} orders</b>{bestSellers.map(([title, quantity]) => <span key={title}>{title} <small>{quantity} sold</small></span>)}</div>}
+        </section>
+      ) : (
+        <section className="admin-panel admin-content-editor">
+          <div className="admin-panel__heading"><div><p className="admin-eyebrow">Website</p><h2>Storefront content manager</h2><p className="admin-muted">Edit page copy, images, navigation, contact details, section order, visibility, and theme settings.</p></div></div>
+          <form className="admin-content-form" onSubmit={saveWebsiteContent}>
+            {false && (<>
+            <section className="admin-content-group" aria-labelledby="admin-content-hero">
+              <h3 id="admin-content-hero">Homepage hero</h3>
+              <div className="admin-fields-row">
+              <label>Hero tagline<input value={contentForm.hero.tag} onChange={event => setContentForm({ ...contentForm, hero: { ...contentForm.hero, tag: event.target.value } })} /></label>
+              <label>Hero heading<input value={contentForm.hero.heading} onChange={event => setContentForm({ ...contentForm, hero: { ...contentForm.hero, heading: event.target.value } })} /></label>
+              </div>
+              <label>Hero description<textarea rows="3" value={contentForm.hero.lead} onChange={event => setContentForm({ ...contentForm, hero: { ...contentForm.hero, lead: event.target.value } })} /></label>
+              <div className="admin-fields-row">
+              <label>Hero CTA text<input value={contentForm.hero.cta} onChange={event => setContentForm({ ...contentForm, hero: { ...contentForm.hero, cta: event.target.value } })} /></label>
+              <label>Secondary CTA<input value={contentForm.hero.cta2} onChange={event => setContentForm({ ...contentForm, hero: { ...contentForm.hero, cta2: event.target.value } })} /></label>
+              </div>
+            </section>
+            <section className="admin-content-group" aria-labelledby="admin-content-offer">
+              <h3 id="admin-content-offer">Promotion</h3>
+              <div className="admin-fields-row">
+              <label>Offer heading<input value={contentForm.offer.heading} onChange={event => setContentForm({ ...contentForm, offer: { ...contentForm.offer, heading: event.target.value } })} /></label>
+              <label>Offer code<input value={contentForm.offer.code} onChange={event => setContentForm({ ...contentForm, offer: { ...contentForm.offer, code: event.target.value } })} /></label>
+              </div>
+              <label>Offer text<textarea rows="3" value={contentForm.offer.text} onChange={event => setContentForm({ ...contentForm, offer: { ...contentForm.offer, text: event.target.value } })} /></label>
+            </section>
+            <section className="admin-content-group" aria-labelledby="admin-content-footer">
+              <h3 id="admin-content-footer">Footer &amp; newsletter</h3>
+              <label>Footer introduction<textarea rows="3" value={contentForm.footer.about} onChange={event => setContentForm({ ...contentForm, footer: { ...contentForm.footer, about: event.target.value } })} /></label>
+              <div className="admin-fields-row">
+              <label>Newsletter heading<input value={contentForm.newsletter.heading} onChange={event => setContentForm({ ...contentForm, newsletter: { ...contentForm.newsletter, heading: event.target.value } })} /></label>
+              <label>Newsletter text<input value={contentForm.newsletter.text} onChange={event => setContentForm({ ...contentForm, newsletter: { ...contentForm.newsletter, text: event.target.value } })} /></label>
+              </div>
+            </section>
+            <section className="admin-content-group" aria-labelledby="admin-content-about">
+              <h3 id="admin-content-about">About your brand</h3>
+              <div className="admin-fields-row">
+              <label>About heading<input value={contentForm.about.heading} onChange={event => setContentForm({ ...contentForm, about: { ...contentForm.about, heading: event.target.value } })} /></label>
+              <label>About CTA<input value={contentForm.about.cta} onChange={event => setContentForm({ ...contentForm, about: { ...contentForm.about, cta: event.target.value } })} /></label>
+              </div>
+              <label>About description<textarea rows="4" value={contentForm.about.text} onChange={event => setContentForm({ ...contentForm, about: { ...contentForm.about, text: event.target.value } })} /></label>
+            </section>
+            </>)}
+            <SiteContentEditor content={contentForm} onChange={setContentForm} onUploadImage={uploadContentImage} disabled={busy} collections={collections} />
+            <div className="admin-content-actions">
+              <p>Changes are saved to Supabase and shared with every storefront visitor.</p>
+              <button className="admin-button" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save website content'}</button>
+            </div>
+          </form>
         </section>
       )}
     </main>

@@ -1,16 +1,23 @@
 // All API handlers (formerly the Express router). Each app/api/**/route.js re-exports the ones it serves.
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import { store, storeName } from './store/index.js';
 import { catalog, SORTS, sortProducts, searchProducts } from './lib/catalog.js';
 import { sendNewOrderNotification } from './lib/order-notification.js';
+import { isPaymentMethodAvailable, paymentMethods } from './lib/payment-methods.js';
 import { FREE_SHIPPING_OVER, SHIPPING_FEE, isEmail, clean, rateLimited } from './lib/util.js';
 
 const json = (data, status = 200) => NextResponse.json(data, { status });
 const tooMany = () => json({ error: 'Too many requests, please try again in a minute.' }, 429);
 const query = req => new URL(req.url).searchParams;
 const readBody = req => req.json().catch(() => ({}));
-const wrap = fn => async (req, ctx) => {
+const wrap = (fn, { checkoutDiagnostics = false } = {}) => async (req, ctx) => {
   try { return await fn(req, ctx); } catch (err) {
+    if (checkoutDiagnostics) {
+      const reference = randomUUID();
+      console.error(`[checkout:${reference}]`, err);
+      return json({ error: `We couldn't place your order. Please try again or contact us with reference ${reference}.` }, 500);
+    }
     console.error(err);
     return json({ error: 'Something went wrong. Please try again.' }, 500);
   }
@@ -30,7 +37,12 @@ const publicCollectionTitle = collection => collection.handle === 'gift-sets' ? 
 
 // ---------------------------------------------------------------- health / config
 export const health = () => json({ ok: true, store: storeName });
-export const getConfig = () => json({ freeShippingOver: FREE_SHIPPING_OVER, shippingFee: SHIPPING_FEE, currency: 'PKR' });
+export const getConfig = () => json({
+  freeShippingOver: FREE_SHIPPING_OVER,
+  shippingFee: SHIPPING_FEE,
+  currency: 'PKR',
+  paymentMethods: paymentMethods(),
+});
 export const getStatus = () => json({ store: storeName });
 
 // ---------------------------------------------------------------- products
@@ -147,11 +159,23 @@ export const checkDiscount = wrap(async req => {
   return json({ code: d.code, percent: d.percent });
 });
 
-// ---------------------------------------------------------------- checkout (Cash on Delivery)
+// ---------------------------------------------------------------- checkout
 export const createOrder = wrap(async req => {
   if (rateLimited(req, 10)) return tooMany();
   const b = await readBody(req);
-  const lines = await priceLines(Array.isArray(b.lines) ? b.lines : []);
+  const paymentMethod = clean(b.paymentMethod || 'cod', 20).toLowerCase();
+  if (!['cod', 'jazzcash', 'easypaisa'].includes(paymentMethod)) {
+    return json({ error: 'Please select a supported payment method.' }, 400);
+  }
+  if (!isPaymentMethodAvailable(paymentMethod)) {
+    return json({ error: 'This payment method is not configured yet. Please choose another method.' }, 400);
+  }
+  const paymentReference = paymentMethod === 'cod' ? null : clean(b.paymentReference, 100);
+  if (paymentMethod !== 'cod' && !paymentReference) {
+    return json({ error: 'Enter the transaction reference for your wallet transfer.' }, 400);
+  }
+  if (!Array.isArray(b.lines) || b.lines.length === 0) return json({ error: 'Your cart is empty.' }, 400);
+  const lines = await priceLines(b.lines);
   if (!lines.length) return json({ error: 'Your cart is empty.' }, 400);
 
   const a = b.address || {};
@@ -186,7 +210,7 @@ export const createOrder = wrap(async req => {
 
   const order = await store.createOrder({
     userId: user?.id || null, email, phone, shippingAddress: address, subtotal, shipping, discount, discountCode,
-    total, paymentMethod: 'cod', note: clean(b.note, 500),
+    total, paymentMethod, paymentReference, note: clean(b.note, 500),
     items: lines.map(l => ({ productId: l.product.id, variantId: l.variant.id, handle: l.product.handle, title: l.product.title,
       variantTitle: l.variant.title, price: l.variant.price, quantity: l.quantity, image: l.product.featuredImage })),
   });
@@ -196,7 +220,7 @@ export const createOrder = wrap(async req => {
     console.error(`[order-email] Failed to notify admin for order ${order.id}:`, notificationError);
   }
   return json({ order }, 201);
-});
+}, { checkoutDiagnostics: true });
 
 // guest "thank you" page: the order id is an unguessable UUID
 export const getOrder = wrap(async (_req, { params }) => {
