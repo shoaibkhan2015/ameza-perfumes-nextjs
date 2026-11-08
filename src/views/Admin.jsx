@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtDate, money } from '../lib/format.js';
+import { discountedPrice, isValidDiscountPercent } from '../lib/pricing.js';
 import { applySiteAppearance, getSiteContentSnapshot, setSiteContentOverrides } from '../data/siteContent.js';
 import SiteContentEditor from '../components/SiteContentEditor.jsx';
 import '../styles/admin.css';
@@ -15,7 +16,7 @@ const emptyStory = () => ({
   eyebrow: '', heading: '', description: '', image: '', quote: '',
   stats: getSiteContentSnapshot().pdpStory.stats.map(([value, label]) => [value, label]),
 });
-const emptyForm = () => ({ title: '', price: '', description: '', category: '', stock: '0', images: [], published: true, variantId: '', collectionIds: [], fragrance: { topNotes: '', heartNotes: '', baseNotes: '', family: '', concentration: '', longevity: '', sillage: '', ingredients: '', description: '', story: emptyStory() } });
+const emptyForm = () => ({ title: '', price: '', discountPercent: '0', description: '', category: '', stock: '0', images: [], published: true, variantId: '', collectionIds: [], fragrance: { topNotes: '', heartNotes: '', baseNotes: '', family: '', concentration: '', longevity: '', sillage: '', ingredients: '', description: '', story: emptyStory() } });
 const errorMessage = error => error?.message || 'Something went wrong. Please try again.';
 const collectionLabel = collection => ({
   men: 'For Him',
@@ -57,6 +58,12 @@ export default function Admin() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [storeWarning, setStoreWarning] = useState('');
+  const discountPercent = Number(form.discountPercent);
+  const discountValid = form.discountPercent.trim() !== '' && isValidDiscountPercent(discountPercent);
+  const previewBasePrice = Number(form.price);
+  const previewPrice = form.price.trim() !== '' && Number.isFinite(previewBasePrice) && previewBasePrice >= 0 && discountValid
+    ? discountedPrice(previewBasePrice, discountPercent)
+    : null;
 
   const pendingOrders = orders.filter(order => order.confirmation_status === 'pending');
   const confirmedOrders = orders.filter(order => order.confirmation_status === 'confirmed');
@@ -159,6 +166,7 @@ export default function Admin() {
     setForm({
       title: product.title,
       price: variant ? String(variant.price) : '',
+      discountPercent: String(product.discount_percent ?? 0),
       description: product.description_html || '',
       category: product.product_type || '',
       stock: variant ? String(variant.inventory_quantity) : '0',
@@ -229,6 +237,9 @@ export default function Admin() {
       if (!form.title.trim() || !Number.isFinite(price) || price < 0 || !Number.isInteger(stock) || stock < 0) {
         throw new Error('Enter a product name, a valid non-negative PKR price, and a whole-number stock quantity.');
       }
+      if (!form.discountPercent.trim() || !isValidDiscountPercent(discountPercent)) {
+        throw new Error('Enter a discount percentage between 0 and 100.');
+      }
       const allUploaded = await uploadImages([...files, ...(storyImageFile ? [storyImageFile] : [])]);
       const uploaded = allUploaded.slice(0, files.length);
       const storyImage = storyImageFile ? allUploaded[files.length] : form.fragrance.story.image.trim();
@@ -237,6 +248,7 @@ export default function Admin() {
         description_html: form.description,
         product_type: form.category.trim(),
         images: [...form.images, ...uploaded],
+        discount_percent: discountPercent,
         published: form.published,
         fragrance: {
           topNotes: form.fragrance.topNotes.trim(),
@@ -621,6 +633,16 @@ export default function Admin() {
               <div className="admin-fields-row">
                 <label>Price (PKR)<input required type="number" min="0" step="0.01" value={form.price} onChange={event => setForm({ ...form, price: event.target.value })} /></label>
                 <label>Stock quantity<input required type="number" min="0" step="1" value={form.stock} onChange={event => setForm({ ...form, stock: event.target.value })} /></label>
+              </div>
+              <label>Discount (%)<input required type="number" min="0" max="100" step="0.01" value={form.discountPercent} onChange={event => setForm({ ...form, discountPercent: event.target.value })} /></label>
+              <div className="admin-discount-preview" aria-live="polite">
+                {previewPrice === null
+                  ? <span>Enter a valid price and discount to preview the selling price.</span>
+                  : <>
+                    <div><span>Original price</span><b>{money(previewBasePrice)}</b></div>
+                    <div><span>Discount</span><b>{discountPercent}%</b></div>
+                    <div><span>Final selling price</span><b>{money(previewPrice)}</b></div>
+                  </>}
               </div>
               <label>Category<input maxLength="80" value={form.category} onChange={event => setForm({ ...form, category: event.target.value })} placeholder="e.g. Women, Men, Oud" /></label>
               <fieldset className="admin-collection-picker">

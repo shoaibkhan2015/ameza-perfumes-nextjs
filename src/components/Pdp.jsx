@@ -53,6 +53,7 @@ export function PdpMain({ product }) {
   const submit = e => { e?.preventDefault(); if (v.available) add(product, v, qty); };
   const buyNow = () => { if (v.available) { add(product, v, qty, { silent: true }); router.push('/checkout'); } };
   const onSale = v.compareAtPrice > v.price;
+  const salePercent = v.discountPercent > 0 ? v.discountPercent : discountPct(v.compareAtPrice, v.price);
 
   return (
     <>
@@ -75,7 +76,7 @@ export function PdpMain({ product }) {
             <a className="pdp-rate" href="#reviews"><span className="am-stars">★★★★★</span> {C.pdp.score} · {C.pdp.count} reviews</a>
             <div className="pdp-price">
               <span>{money(v.price)}</span>
-              {onSale && <><s className="am-was">{money(v.compareAtPrice)}</s><span className="pdp-save">Save {discountPct(v.compareAtPrice, v.price)}%</span></>}
+              {onSale && <><s className="am-was">{money(v.compareAtPrice)}</s><span className="pdp-save">{salePercent}% OFF</span></>}
             </div>
             <div className="pdp-desc" dangerouslySetInnerHTML={{ __html: product.descriptionHtml }} />
 
@@ -127,7 +128,7 @@ export function PdpMain({ product }) {
         </div>
       </div></section>
       <div className="pdp-bar" ref={barRef}>
-        <div>{product.title} · <span>{money(v.price)}</span></div>
+        <div>{product.title} · <span>{money(v.price)}</span>{onSale && <> <s className="am-was">{money(v.compareAtPrice)}</s> <span className="pdp-save">{salePercent}% OFF</span></>}</div>
         <button type="button" className="am-btn" onClick={submit}>Add to cart</button>
       </div>
     </>

@@ -125,7 +125,7 @@ export const getBlog = wrap(async (_req, { params }) => {
 // ---------------------------------------------------------------- cart helpers
 // Re-price whatever is in the browser's cart using the real database prices.
 async function priceLines(lines) {
-  const { products } = await catalog();
+  const { products } = await catalog({ fresh: true });
   const out = [];
   for (const l of lines.slice(0, 50)) {
     const qty = Math.floor(Number(l.quantity));
@@ -140,6 +140,7 @@ async function priceLines(lines) {
 const shape = ({ product: p, variant: v, quantity }) => ({
   variantId: v.id, productId: p.id, handle: p.handle, title: p.title, variantTitle: v.title,
   hasOnlyDefaultVariant: p.hasOnlyDefaultVariant, price: v.price, compareAtPrice: v.compareAtPrice,
+  discountPercent: v.discountPercent || 0,
   image: p.featuredImage, quantity, available: v.available, inventory: v.inventory,
 });
 

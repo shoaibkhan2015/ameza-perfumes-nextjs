@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import { useCart } from '../lib/cart.jsx';
-import { bottleUrl, money } from '../lib/format.js';
+import { bottleUrl, discountPct, money } from '../lib/format.js';
 import { useTitle } from '../lib/hooks.js';
 
 // Prices are re-calculated on the server; wallet transfers are verified manually.
@@ -152,7 +152,7 @@ export default function Checkout() {
               <div className="cp__row" key={l.variantId}>
                 <span className="cp__img">{l.image ? <img src={l.image} alt="" /> : <i style={{ '--bot': `url('${bottleUrl(l.handle)}')` }} />}</span>
                 <div><span className="cp__t">{l.title}</span>{!l.hasOnlyDefaultVariant && <p className="cp__v">{l.variantTitle}</p>}<p className="cp__v">Qty {l.quantity}</p></div>
-                <div className="cp__tot">{money(l.price * l.quantity)}</div>
+                <div className="cp__tot">{money(l.price * l.quantity)}{l.compareAtPrice > l.price && <><s className="cp__was">{money(l.compareAtPrice * l.quantity)}</s><small>{l.discountPercent > 0 ? l.discountPercent : discountPct(l.compareAtPrice, l.price)}% OFF</small></>}</div>
               </div>
             ))}
           </div>

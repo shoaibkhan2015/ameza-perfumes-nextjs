@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useApi } from '../lib/hooks.js';
 import { useCart } from '../lib/cart.jsx';
-import { bottleUrl, money } from '../lib/format.js';
+import { bottleUrl, discountPct, money } from '../lib/format.js';
 import { moods, moodSection } from '../data/siteContent.js';
 import '../styles/mood-picker.css';
 
@@ -36,6 +36,8 @@ export default function MoodPicker() {
   const img = product?.featuredImage || bottleUrl(handle);
   const title = product?.title || m.handle.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   const variant = product && (product.variants.find(v => v.id === product.selectedVariantId) || product.variants[0]);
+  const onSale = product && product.compareAtPrice > product.price;
+  const salePercent = product?.discountPercent > 0 ? product.discountPercent : discountPct(product?.compareAtPrice, product?.price);
 
   return (
     <section className="am-sec mp" id="mood"><div className="am-wrap">
@@ -62,7 +64,7 @@ export default function MoodPicker() {
             <p className="mp-eb">{m.icon} Your mood · {m.label}</p>
             <h3>{title}</h3>
             <p className="mp-line">{m.line}</p>
-            {product && <div className="mp-price">{money(product.price)}</div>}
+            {product && <div className="mp-price">{onSale && <><s className="am-was">{money(product.compareAtPrice)}</s> <span className="pdp-save">{salePercent}% OFF</span> </>}{money(product.price)}</div>}
             <div className="mp-cta">
               {product && variant && product.available && <button type="button" className="am-btn" onClick={() => add(product, variant, 1)}>Add to cart</button>}
               <Link className="mp-ghost" href={`/products/${handle}`}>View perfume</Link>

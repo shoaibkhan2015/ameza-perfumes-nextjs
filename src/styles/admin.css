@@ -27,6 +27,9 @@
 .admin-product-form input[type=file]{font:13px system-ui;max-width:100%}
 .admin-collection-preview{width:100%;max-height:220px;object-fit:contain;border:1px solid rgba(184,134,43,.2);border-radius:10px;background:#f8f5ed}
 .admin-product-form textarea{resize:vertical}.admin-fields-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.admin-discount-preview{display:grid;gap:8px;padding:12px 14px;border:1px solid rgba(184,134,43,.25);border-radius:10px;background:#fbf8f0;font-size:12px}
+.admin-discount-preview>div{display:flex;justify-content:space-between;gap:12px}.admin-discount-preview span{color:#756c5b}.admin-discount-preview>div:last-child{padding-top:8px;border-top:1px solid rgba(184,134,43,.2);color:#805a15}
+.admin-discount-preview>div:last-child span{color:inherit;font-weight:700}
 .admin-content-editor{max-width:1400px;margin:0 auto}
 .admin-content-form{display:grid;gap:0}
 .admin-content-group{display:grid;gap:16px;padding:24px 0;border-top:1px solid rgba(184,134,43,.18)}

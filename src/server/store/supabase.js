@@ -30,6 +30,7 @@ export async function loadCatalog() {
   const products = prods.map(p => ({
     id: p.id, handle: p.handle, title: p.title, descriptionHtml: p.description_html || '', vendor: p.vendor || '',
     productType: p.product_type || '', tags: p.tags || [], images: p.images || [], fragrance: p.fragrance || {}, published: p.published,
+    discountPercent: Number(p.discount_percent ?? 0),
     sortOrder: p.sort_order, bestSelling: p.best_selling, createdAt: p.created_at,
     variants: (p.product_variants || []).sort((a, b) => a.position - b.position).map(v => ({
       id: v.id, title: v.title, optionName: v.option_name, price: Number(v.price),

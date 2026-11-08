@@ -1,11 +1,12 @@
 import { store } from '../store/index.js';
+import { discountedPrice, isValidDiscountPercent } from '../../lib/pricing.js';
 
 // ---- tiny cache so we don't hit the database on every page view -----------
 let cache = null, cacheAt = 0;
 const TTL = Number(process.env.CATALOG_CACHE_SECONDS ?? 20) * 1000;
 
-export async function catalog() {
-  if (cache && Date.now() - cacheAt < TTL) return cache;
+export async function catalog({ fresh = false } = {}) {
+  if (!fresh && cache && Date.now() - cacheAt < TTL) return cache;
   const raw = await store.loadCatalog();
   const byProduct = new Map();
   for (const c of raw.collections) for (const h of c.productHandles) {
@@ -20,7 +21,17 @@ export async function catalog() {
 export const clearCatalogCache = () => { cache = null; };
 
 export function serialize(p, collections) {
-  const variants = p.variants.map(v => ({ ...v, available: v.inventory > 0 }));
+  const discountPercent = Number(p.discountPercent ?? 0);
+  if (!isValidDiscountPercent(discountPercent)) {
+    throw new RangeError(`Product ${p.handle} has an invalid discount percentage.`);
+  }
+  const variants = p.variants.map(v => ({
+    ...v,
+    ...(discountPercent > 0
+      ? { price: discountedPrice(v.price, discountPercent), compareAtPrice: v.price, discountPercent }
+      : {}),
+    available: v.inventory > 0,
+  }));
   const avail = variants.filter(v => v.available);
   const sel = avail[0] || variants[0];
   const min = variants.reduce((m, v) => (v.price < m.price ? v : m), variants[0]);
@@ -30,7 +41,7 @@ export function serialize(p, collections) {
     createdAt: p.createdAt, sortOrder: p.sortOrder, bestSelling: p.bestSelling,
     variants, hasOnlyDefaultVariant: variants.length === 1 && variants[0].title === 'Default Title',
     optionName: variants[0].optionName,
-    available: avail.length > 0, price: min.price, compareAtPrice: min.compareAtPrice,
+    available: avail.length > 0, price: min.price, compareAtPrice: min.compareAtPrice, discountPercent,
     selectedVariantId: sel.id, inventory: sel.inventory, collections,
   };
 }

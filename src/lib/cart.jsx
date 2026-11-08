@@ -42,7 +42,8 @@ export function CartProvider({ children }) {
       const i = s.lines.findIndex(l => l.variantId === variant.id);
       const line = { variantId: variant.id, productId: product.id, handle: product.handle, title: product.title,
         variantTitle: variant.title, hasOnlyDefaultVariant: product.hasOnlyDefaultVariant, price: variant.price,
-        compareAtPrice: variant.compareAtPrice, image: product.featuredImage, quantity };
+        compareAtPrice: variant.compareAtPrice, discountPercent: variant.discountPercent || 0,
+        image: product.featuredImage, quantity };
       const lines = [...s.lines];
       if (i >= 0) lines[i] = { ...lines[i], quantity: lines[i].quantity + quantity }; else lines.push(line);
       return { ...s, lines };

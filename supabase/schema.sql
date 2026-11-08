@@ -18,11 +18,13 @@ create table if not exists public.products (
   tags             text[] not null default '{}',
   images           text[] not null default '{}',   -- full image URLs (Supabase Storage / CDN)
   fragrance        jsonb not null default '{}'::jsonb,
+  discount_percent numeric(5,2) not null default 0 check (discount_percent >= 0 and discount_percent <= 100),
   published        boolean not null default true,
   sort_order       int not null default 0,         -- "Featured" order
   best_selling     int not null default 0,         -- higher = sells more
   created_at       timestamptz not null default now()
 );
+alter table public.products add column if not exists discount_percent numeric(5,2) not null default 0 check (discount_percent >= 0 and discount_percent <= 100);
 
 create table if not exists public.product_variants (
   id                 uuid primary key default gen_random_uuid(),

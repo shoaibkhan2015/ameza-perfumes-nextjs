@@ -22,7 +22,8 @@ export async function loadCatalog() {
   const products = seed.products.map((p, i) => ({
     id: `p_${p.handle}`, handle: p.handle, title: p.title, descriptionHtml: p.description_html || '',
     vendor: p.vendor || '', productType: p.product_type || '', tags: p.tags || [], images: p.images || [],
-    fragrance: p.fragrance || p.fragrance_details || {}, published: p.published !== false, sortOrder: p.sort_order ?? i, bestSelling: p.best_selling ?? 0,
+    fragrance: p.fragrance || p.fragrance_details || {}, published: p.published !== false,
+    discountPercent: Number(p.discount_percent ?? 0), sortOrder: p.sort_order ?? i, bestSelling: p.best_selling ?? 0,
     createdAt: new Date(now - (seed.products.length - i) * 86400000).toISOString(),
     variants: (p.variants || []).map((v, k) => ({
       id: `v_${p.handle}_${k + 1}`, title: v.title, optionName: v.option_name || 'Title', price: Number(v.price),

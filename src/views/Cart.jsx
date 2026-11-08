@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ProductRail } from '../components/sections.jsx';
 import { useCart } from '../lib/cart.jsx';
-import { bottleUrl, money } from '../lib/format.js';
+import { bottleUrl, discountPct, money } from '../lib/format.js';
 import { useTitle } from '../lib/hooks.js';
 
 // templates/cart.json  (sections/am-cart.liquid)
@@ -33,6 +33,7 @@ export default function Cart() {
               <div className="cp__items">
                 {c.lines.map(l => (
                   <div className="cp__row" key={l.variantId}>
+                    {l.compareAtPrice > l.price && <span className="cp__discount-badge">{l.discountPercent > 0 ? l.discountPercent : discountPct(l.compareAtPrice, l.price)}% OFF</span>}
                     <Link className="cp__img" href={`/products/${l.handle}`}>
                       {l.image ? <img src={l.image} alt={l.title} loading="lazy" /> : <i style={{ '--bot': `url('${bottleUrl(l.handle)}')` }} />}
                     </Link>
