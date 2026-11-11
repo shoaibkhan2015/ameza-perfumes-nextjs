@@ -97,3 +97,14 @@
   .am-ft__nl .am-btn{width:100%}
   .am-sticky .am-btn{padding-inline:12px}
 }
+.am-collection-banner{position:relative}
+.am-collection-banner>img{display:block;width:100%;height:auto;border-radius:22px}
+/* Align the link with the gold button already printed in the banner. */
+.am-collection-banner__shop{position:absolute;left:16%;top:81.8%;width:19.5%;height:8%;border-radius:999px;display:flex;align-items:center;justify-content:center;text-decoration:none}
+.am-collection-banner__shop>span{opacity:0}
+.am-collection-banner__shop:hover{box-shadow:0 0 0 3px rgba(246,220,142,.75)}
+.am-collection-banner__shop:focus-visible{outline:3px solid #fff;outline-offset:4px;box-shadow:0 0 0 7px #b8862b}
+@media(max-width:700px){
+  .am-collection-banner__shop{position:relative;left:auto;top:auto;width:fit-content;min-height:44px;height:auto;margin:16px auto 0;padding:14px 26px;background:linear-gradient(135deg,#f6dc8e,#d9a93f 48%,#b8862b);color:#1a1205;font:700 12px/1 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase}
+  .am-collection-banner__shop>span{opacity:1}
+}

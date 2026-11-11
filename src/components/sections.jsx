@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
-import Countdown from './Countdown.jsx';
+import Image from 'next/image';
 import ProductCard from './ProductCard.jsx';
 import { NewsletterForm } from './Footer.jsx';
 import { api } from '../lib/api.js';
@@ -118,17 +118,21 @@ export function ProductRail({ eyebrow, heading, collection = 'all', layout = 'st
 
 // ---- sections/am-offer.liquid
 export function Offer() {
-  const o = C.offer;
   return (
-    <section className="am-sec"><div className="am-wrap"><div className="am-offer" data-reveal>
-      <div>
-        <p className="am-eb">{o.eyebrow}</p><h2 className="am-h">{o.heading}</h2><p>{o.text}</p>
-        <Countdown as="div" end={o.end} /><br />
-        <span className="am-code" data-copy={o.code}>{o.code}</span>
-        <A className="am-btn" href={o.link}>{o.button}</A>
+    <section className="am-sec" aria-label="Discover the Améza collection">
+      <div className="am-wrap am-collection-banner">
+        <Image
+          src="/assets/ameza-collection-banner.jpeg"
+          alt="Améza Eau de Parfum — Unleash Your Signature Scent. Luxury, elegance, long lasting."
+          width={1600}
+          height={640}
+          sizes="(max-width: 1232px) calc(100vw - 32px), 1200px"
+        />
+        <A className="am-collection-banner__shop" href="/collections" aria-label="Shop Améza collections">
+          <span>Shop Collections <span aria-hidden="true">→</span></span>
+        </A>
       </div>
-      <div className="am-offer__img" style={{ '--bot': `url('${o.image || '/assets/drift-bottle.webp'}')` }} />
-    </div></div></section>
+    </section>
   );
 }
 
