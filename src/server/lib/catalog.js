@@ -20,6 +20,12 @@ export async function catalog({ fresh = false } = {}) {
 }
 export const clearCatalogCache = () => { cache = null; };
 
+export function findCollection(collections, handle) {
+  const exact = collections.find(collection => collection.handle === handle);
+  if (exact) return exact;
+  return handle === 'unisex' ? collections.find(collection => collection.handle === 'gift-sets') : undefined;
+}
+
 export function serialize(p, collections) {
   const discountPercent = Number(p.discountPercent ?? 0);
   if (!isValidDiscountPercent(discountPercent)) {

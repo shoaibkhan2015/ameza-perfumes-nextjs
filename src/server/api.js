@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { store, storeName } from './store/index.js';
-import { catalog, SORTS, sortProducts, searchProducts } from './lib/catalog.js';
+import { catalog, findCollection, SORTS, sortProducts, searchProducts } from './lib/catalog.js';
 import { sendNewOrderNotification } from './lib/order-notification.js';
 import { isPaymentMethodAvailable, paymentMethods } from './lib/payment-methods.js';
 import { FREE_SHIPPING_OVER, SHIPPING_FEE, isEmail, clean, rateLimited } from './lib/util.js';
@@ -31,9 +31,13 @@ const needUser = fn => wrap(async (req, ctx) => {
   return user ? fn(req, ctx, user) : json({ error: 'Please log in.' }, 401);
 });
 
-const storedCollectionHandle = handle => handle === 'unisex' ? 'gift-sets' : handle;
-const publicCollectionHandle = handle => handle === 'gift-sets' ? 'unisex' : handle;
-const publicCollectionTitle = collection => collection.handle === 'gift-sets' ? 'Unisex' : collection.title;
+const publicCollection = (collection, collections) => {
+  const legacyUnisex = collection.handle === 'gift-sets' && !collections.some(item => item.handle === 'unisex');
+  return {
+    handle: legacyUnisex ? 'unisex' : collection.handle,
+    title: legacyUnisex ? 'Unisex' : collection.title,
+  };
+};
 
 // ---------------------------------------------------------------- health / config
 export const health = () => json({ ok: true, store: storeName });
@@ -49,7 +53,7 @@ export const getStatus = () => json({ store: storeName });
 export const listProducts = wrap(async req => {
   const q = query(req);
   const { products, collections } = await catalog();
-  const c = collections.find(x => x.handle === storedCollectionHandle(q.get('collection') || 'all'));
+  const c = findCollection(collections, q.get('collection') || 'all');
   const list = c ? c.productHandles.map(h => products.find(p => p.handle === h)).filter(Boolean) : [];
   const limit = Math.min(Number(q.get('limit')) || 50, 100);
   return json({ products: list.slice(0, limit) });
@@ -65,13 +69,15 @@ export const getProduct = wrap(async (_req, { params }) => {
 // ---------------------------------------------------------------- collections
 export const listCollections = wrap(async () => {
   const { collections } = await catalog();
-  return json({ collections: collections.map(c => ({ handle: publicCollectionHandle(c.handle), title: publicCollectionTitle(c), description: c.description, image: c.image, productsCount: c.productHandles.length })) });
+  return json({ collections: collections
+    .filter(c => !(c.handle === 'gift-sets' && collections.some(item => item.handle === 'unisex')))
+    .map(c => ({ ...publicCollection(c, collections), description: c.description, image: c.image, productsCount: c.productHandles.length })) });
 });
 
 export const getCollection = wrap(async (req, { params }) => {
   const { handle } = await params;
   const { products, collections } = await catalog();
-  const c = collections.find(x => x.handle === storedCollectionHandle(handle));
+  const c = findCollection(collections, handle);
   if (!c) return json({ error: 'Collection not found' }, 404);
 
   const q = query(req);
@@ -90,7 +96,7 @@ export const getCollection = wrap(async (req, { params }) => {
   const pages = Math.max(1, Math.ceil(sorted.length / perPage));
 
   return json({
-    collection: { handle: publicCollectionHandle(c.handle), title: publicCollectionTitle(c), description: c.description, image: c.image, productsCount: sorted.length },
+    collection: { ...publicCollection(c, collections), description: c.description, image: c.image, productsCount: sorted.length },
     products: sorted.slice((page - 1) * perPage, page * perPage),
     total: sorted.length, page, pages, perPage, sortBy,
     sortOptions: SORTS.map(([value, name]) => ({ value, name })),
