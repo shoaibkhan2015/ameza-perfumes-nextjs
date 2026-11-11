@@ -62,7 +62,7 @@ export default function PerfumeScroll() {
       hero = q('.ps__hero'), heroImg = hero.querySelector('img'), fx = [].slice.call(root.querySelectorAll('.ps__fx img')),
       n = cards.length, step = 360 / Math.max(n, 1), pad = x => (x < 10 ? '0' : '') + x;
     if (!n) return undefined;
-    let last = -1, tick = false, rotation = 0, scrollIndex = -1, swapTimer = null, noteTimer = null, frame = 0;
+    let last = -1, rotation = 0, swapTimer = null, noteTimer = null;
 
     const P = [[8, 18, 54, 9, -1], [84, 10, 44, 7.5, 1], [16, 56, 36, 8.5, 1], [90, 52, 60, 10, -1], [4, 36, 30, 6.5, 1], [78, 30, 32, 7, -1], [26, 6, 38, 9, 1], [68, 60, 28, 8, -1]];
     fx.forEach((e, i) => {
@@ -103,41 +103,16 @@ export default function PerfumeScroll() {
       if (noteTimer) window.clearInterval(noteTimer);
       if (!reducedMotion) noteTimer = window.setInterval(() => go(rotation + 1), 3200);
     }
-    function update() {
-      tick = false;
-      const rect = root.getBoundingClientRect(), total = root.offsetHeight - window.innerHeight,
-        p = Math.min(1, Math.max(0, -rect.top / Math.max(total, 1))), i = Math.round(p * (n - 1));
-      if (i !== scrollIndex) {
-        const firstUpdate = scrollIndex < 0;
-        scrollIndex = i;
-        if (!firstUpdate && p > 0.02) {
-          const current = ((rotation % n) + n) % n;
-          if (i !== current) {
-            go(rotation + i - current);
-            restartNotes();
-          }
-        }
-      }
-      hero.style.setProperty('--hy', (Math.sin(p * Math.PI * 4) * 18) + 'px');
-    }
-    const req = () => {
-      if (!tick) {
-        tick = true;
-        frame = window.requestAnimationFrame(() => { frame = 0; update(); });
-      }
-    };
-    const onResize = () => { layout(); req(); };
+    const onResize = () => layout();
     const onMove = e => { const r = root.getBoundingClientRect(); root.style.setProperty('--mx', ((e.clientX / r.width) - 0.5) * 2); root.style.setProperty('--my', ((e.clientY / innerHeight) - 0.5) * 2); };
-    layout(); go(0); update(); restartNotes();
-    window.addEventListener('scroll', req, { passive: true });
+    layout(); go(0); restartNotes();
     window.addEventListener('resize', onResize);
     if (!reducedMotion) root.addEventListener('pointermove', onMove);
     return () => {
-      window.removeEventListener('scroll', req); window.removeEventListener('resize', onResize);
+      window.removeEventListener('resize', onResize);
       root.removeEventListener('pointermove', onMove);
       if (noteTimer) window.clearInterval(noteTimer);
       if (swapTimer) window.clearTimeout(swapTimer);
-      if (frame) window.cancelAnimationFrame(frame);
     };
   }, [reducedMotion]);
 
@@ -147,7 +122,7 @@ export default function PerfumeScroll() {
   };
 
   return (
-    <section ref={ref} className={`ps hz${reducedMotion ? ' ps--reduced-motion' : ''}`} data-ps id="ps-hero" style={{ '--ps-len': H.len + 'vh', '--ps-top': H.topOff + 'px', '--ps-h': H.stageH }}>
+    <section ref={ref} className={`ps hz${reducedMotion ? ' ps--reduced-motion' : ''}`} data-ps id="ps-hero" style={{ '--ps-h': H.stageH }}>
       <div className="ps__sticky">
         <div className="ps__bg" style={H.backgroundImage ? { backgroundImage: `linear-gradient(rgba(251,247,239,.22),rgba(251,247,239,.22)),url("${H.backgroundImage}")` } : undefined} />
         <div className="ps__side l">{H.sideL}</div><div className="ps__side r">{H.sideR}</div>
@@ -166,7 +141,7 @@ export default function PerfumeScroll() {
           </div>
         </div>
         <p className="ps__lead">{H.lead}</p>
-        <div className="ps__prog"><small>Scroll to explore the notes</small><i><u /></i></div>
+        <div className="ps__prog"><small>Explore the fragrance notes</small><i><u /></i></div>
         <div className="ps__scene">
           <div className="ps__glow" />
           <div className="ps__fx">{Array.from({ length: 8 }, (_, i) => <img key={i} alt="" src={first} />)}</div>
@@ -192,7 +167,6 @@ export default function PerfumeScroll() {
         <div className="ps__info"><p className="ps__group" /><h3 className="ps__name" /><p className="ps__note" /></div>
         <div className="ps__cta"><A href={shopHref}>Shop {titleBottle.name}</A><A className="ps__ghost" href={H.cta2Link}>{H.cta2}</A></div>
         <div className="ps__meta"><span className="am-stars">★★★★★</span><b>{H.rating}</b><span>{H.ratingText}</span></div>
-        <div className="ps__hint">Scroll</div>
       </div>
     </section>
   );
