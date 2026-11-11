@@ -18,7 +18,7 @@ export default function Home() {
     bestsellers: <ProductRail {...home.bestsellers} />,
     offer: <Offer />,
     video: <Video />,
-    newArrivals: <ProductRail {...home.newArrivals} />,
+    newArrivals: <ProductRail {...home.newArrivals} navigation />,
     reviews: <Reviews />,
     faq: <Faq />,
     newsletter: <Newsletter />,

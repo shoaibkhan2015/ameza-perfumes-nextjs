@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import Countdown from './Countdown.jsx';
 import ProductCard from './ProductCard.jsx';
@@ -55,16 +55,62 @@ export function Tiles() {
 }
 
 // ---- sections/am-products.liquid  (collection = handle, layout = 'standard' | 'tall')
-export function ProductRail({ eyebrow, heading, collection = 'all', layout = 'standard', limit = 8, bg = '#1c2a55' }) {
+export function ProductRail({ eyebrow, heading, collection = 'all', layout = 'standard', limit = 8, bg = '#1c2a55', navigation = false }) {
   const { data } = useApi(`/products?collection=${collection}&limit=${limit}`);
+  const railRef = useRef(null);
+  const railId = useId();
+  const [railBounds, setRailBounds] = useState({ canScroll: false, canScrollBack: false, canScrollForward: false });
+  const products = data?.products || [];
+
+  useEffect(() => {
+    if (!navigation) return;
+    const rail = railRef.current;
+    if (!rail) return;
+    const updateBounds = () => {
+      const maxScroll = rail.scrollWidth - rail.clientWidth;
+      const atStart = rail.scrollLeft <= 4;
+      const atEnd = maxScroll - rail.scrollLeft <= 4;
+      setRailBounds({
+        canScroll: maxScroll > 1,
+        canScrollBack: !atStart,
+        canScrollForward: !atEnd,
+      });
+    };
+    updateBounds();
+    rail.addEventListener('scroll', updateBounds, { passive: true });
+    const resizeObserver = new ResizeObserver(updateBounds);
+    resizeObserver.observe(rail);
+    return () => {
+      rail.removeEventListener('scroll', updateBounds);
+      resizeObserver.disconnect();
+    };
+  }, [navigation, products.length]);
+
+  const scrollRail = direction => {
+    const rail = railRef.current;
+    const firstCard = rail?.firstElementChild;
+    if (!rail || !firstCard) return;
+    const gap = Number.parseFloat(getComputedStyle(rail).columnGap) || 0;
+    rail.scrollBy({ left: direction * (firstCard.getBoundingClientRect().width + gap), behavior: 'smooth' });
+  };
+  const viewAll = <Link className="am-link" href={`/collections/${collection}`}>View all</Link>;
+
   return (
     <section className="am-sec"><div className="am-wrap">
       <div className="am-head" data-reveal>
         <div><p className="am-eb">{eyebrow}</p><h2 className="am-h">{heading}</h2></div>
-        <Link className="am-link" href={`/collections/${collection}`}>View all</Link>
+        {navigation ? <div className="am-rail__actions">
+          {railBounds.canScroll && <>
+            <button type="button" className="am-rail__arrow" aria-label={`Scroll ${heading} left`} aria-controls={railId}
+              disabled={!railBounds.canScrollBack} onClick={() => scrollRail(-1)}>←</button>
+            <button type="button" className="am-rail__arrow" aria-label={`Scroll ${heading} right`} aria-controls={railId}
+              disabled={!railBounds.canScrollForward} onClick={() => scrollRail(1)}>→</button>
+          </>}
+          {viewAll}
+        </div> : viewAll}
       </div>
-      <div className={'am-rail' + (layout === 'tall' ? ' am-rail--tall' : '')}>
-        {(data?.products || []).map((p, i) => <ProductCard key={p.id} product={p} index={i} bg={bg} />)}
+      <div className={'am-rail' + (layout === 'tall' ? ' am-rail--tall' : '')} id={navigation ? railId : undefined} ref={railRef}>
+        {products.map((p, i) => <ProductCard key={p.id} product={p} index={i} bg={bg} />)}
       </div>
     </div></section>
   );
