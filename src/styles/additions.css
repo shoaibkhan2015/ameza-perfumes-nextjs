@@ -108,3 +108,6 @@
   .am-collection-banner__shop{position:relative;left:auto;top:auto;width:fit-content;min-height:44px;height:auto;margin:16px auto 0;padding:14px 26px;background:linear-gradient(135deg,#f6dc8e,#d9a93f 48%,#b8862b);color:#1a1205;font:700 12px/1 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase}
   .am-collection-banner__shop>span{opacity:1}
 }
+/* Fit the complete logo inside the circular frame without zoom or cropping. */
+.am-body .am-emb,.am-body .ps__emb{background:#000;border-radius:50%;overflow:hidden}
+.am-body .am-emb .am-logo-image,.am-body .ps__emb .am-logo-image{width:100%;height:100%;object-fit:contain;object-position:center;transform:none;scale:none}

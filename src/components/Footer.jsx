@@ -42,7 +42,7 @@ export default function Footer() {
       <div className="am-ft__in">
         <div className="am-ft__brand">
           <Link href="/" style={{ display: 'flex', gap: 12, alignItems: 'center', padding: 0, opacity: 1 }}>
-            <span className="am-emb"><img className="am-logo-image" src={site.logoImage || '/assets/ameza-emblem.png'} alt={site.logoImage ? `${site.brand} logo` : ''} /></span>
+            <span className="am-emb"><img className="am-logo-image" src={site.logoImage || '/assets/ameza-logo-black.jpeg'} alt={site.logoImage ? `${site.brand} logo` : ''} /></span>
             <span className="am-wm"><b>{site.brand}</b><small>{site.tagline}</small></span>
           </Link>
           <p style={{ marginTop: 18, maxWidth: 340 }}>{footer.about}</p>

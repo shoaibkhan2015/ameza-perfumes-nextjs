@@ -5,7 +5,7 @@ import '@/styles/additions.css';
 
 export const metadata = {
   title: 'Améza Parfums',
-  icons: { icon: '/assets/ameza-emblem.png' },
+  icons: { icon: '/assets/ameza-logo-black.jpeg' },
 };
 export const viewport = { themeColor: '#0b1530', viewportFit: 'cover' };
 
