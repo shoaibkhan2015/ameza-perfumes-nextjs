@@ -48,7 +48,7 @@ export default function Footer() {
           <p style={{ marginTop: 18, maxWidth: 340 }}>{footer.about}</p>
           <div className="am-soc">
             {footer.social.filter(s => s.url).map(s => (
-              <a key={s.platform} href={s.url} target="_blank" rel="noopener noreferrer" aria-label={s.platform}>{ICONS[s.platform]}</a>
+              <a key={s.platform} href={s.url} target="_blank" rel="noopener noreferrer" aria-label={s.platform}>{ICONS[s.platform.toLowerCase().replace(/[^a-z0-9]/g, '')] || s.platform}</a>
             ))}
           </div>
         </div>
