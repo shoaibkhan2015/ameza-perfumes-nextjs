@@ -48,7 +48,7 @@ export default function Header() {
           </nav>
         </div>
         <Link className="am-hd__logo" href="/">
-          <span className="am-emb">{site.logoImage ? <img className="am-hd__img" src={site.logoImage} alt={`${site.brand} logo`} /> : <img src="/assets/ameza-emblem.png" alt="" />}</span>
+          <span className="am-emb"><img className="am-logo-image" src={site.logoImage || '/assets/ameza-emblem.png'} alt={site.logoImage ? `${site.brand} logo` : ''} /></span>
           <span className="am-wm"><b>{site.brand}</b><small>{site.tagline}</small></span>
         </Link>
         <div className="am-hd__r">
@@ -63,6 +63,10 @@ export default function Header() {
       <div className="am-drawer" hidden={!open} onClick={e => e.target === e.currentTarget && setOpen(false)}>
         <div className="am-drawer__p">
           <button className="am-drawer__x" type="button" aria-label="Close" onClick={() => setOpen(false)}>✕</button>
+          <Link className="am-drawer__brand" href="/" onClick={() => setOpen(false)}>
+            <span className="am-emb"><img className="am-logo-image" src={site.logoImage || '/assets/ameza-emblem.png'} alt={site.logoImage ? `${site.brand} logo` : ''} /></span>
+            <span className="am-wm"><b>{site.brand}</b><small>{site.tagline}</small></span>
+          </Link>
           {mainMenu.map(link => (
             <span key={link.url} style={{ display: 'contents' }}>
               <Link href={link.url}>{link.title}</Link>

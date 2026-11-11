@@ -153,7 +153,7 @@ export default function PerfumeScroll() {
         <div className="ps__side l">{H.sideL}</div><div className="ps__side r">{H.sideR}</div>
         <div className="ps__word l">{nl2br(H.wordL)}</div><div className="ps__word r">{nl2br(H.wordR)}</div>
         <div className="ps__head">
-          <div className="ps__brand"><span className="ps__emb"><img src={site.logoImage || '/assets/ameza-emblem.png'} alt="" /></span><span className="ps__bn"><b>{H.brand}</b><small>{H.brandSub}</small></span></div>
+          <div className="ps__brand"><span className="ps__emb"><img className="am-logo-image" src={site.logoImage || '/assets/ameza-emblem.png'} alt={site.logoImage ? `${site.brand} logo` : ''} /></span><span className="ps__bn"><b>{H.brand}</b><small>{H.brandSub}</small></span></div>
           <p className="ps__tag">{H.tag}</p>
           <h1 className="ps__h1">AMÉZA Perfumes Pakistan<span>Most Luxurious Perfume · Order Now</span></h1>
           <h2 className={`ps__title${titleIsSwapping ? ' sw' : ''}`}>{titleBottle.name}</h2>

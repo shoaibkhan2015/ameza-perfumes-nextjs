@@ -146,8 +146,7 @@
 .ps.hz .ps__tag{display:none}
 .ps.hz .ps__brand{display:inline-flex;align-items:center;gap:14px;padding:9px 26px 9px 9px;border-radius:99px;border:1.5px solid transparent;position:relative;overflow:hidden;margin-bottom:24px;background:linear-gradient(rgba(255,255,255,.82),rgba(255,255,255,.82)) padding-box,linear-gradient(135deg,#f6dc8e,#b8862b 50%,#f6dc8e) border-box;box-shadow:0 10px 30px rgba(184,134,43,.22)}
 .ps.hz .ps__brand::after{content:'';position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.8),transparent);transform:skewX(-20deg);animation:psbsh 4.5s infinite}
-.ps__emb{flex:0 0 48px;height:48px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#22408a,#0b1530);display:grid;place-items:center;box-shadow:0 0 0 2px rgba(246,220,142,.75)}
-.ps__emb img{width:60%;height:auto;display:block}
+.ps__emb{flex:0 0 48px;width:48px;height:48px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#22408a,#0b1530);display:grid;place-items:center;box-shadow:0 0 0 2px rgba(246,220,142,.75)}
 .ps__bn{display:flex;flex-direction:column;text-align:left;line-height:1}
 .ps__bn b{font:600 25px/1 'Cormorant Garamond',Georgia,serif;letter-spacing:.34em;margin-right:-.34em;background:linear-gradient(180deg,#d9a93f,#8a5f10);-webkit-background-clip:text;background-clip:text;color:transparent}
 .ps__bn small{font:600 8.5px/1 system-ui,sans-serif;letter-spacing:.34em;text-transform:uppercase;margin-top:8px;opacity:.75}
