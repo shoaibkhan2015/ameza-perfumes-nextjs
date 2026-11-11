@@ -9,5 +9,6 @@ export const discountedPrice = (price, percent) => {
   if (!Number.isFinite(amount) || amount < 0 || !isValidDiscountPercent(rate)) {
     throw new RangeError('Price and discount percentage must be valid non-negative values.');
   }
-  return Math.round(amount * (100 - rate)) / 100;
+  if (rate === 0) return amount;
+  return Math.round((amount * (100 - rate)) / 1000) * 10;
 };
