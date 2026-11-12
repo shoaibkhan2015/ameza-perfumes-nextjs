@@ -1,0 +1,9 @@
+.am-review-write{margin-top:24px}.am-review-write>summary{cursor:pointer;list-style:none}.am-review-write>summary::-webkit-details-marker{display:none}
+.am-review-form{position:relative;max-width:760px;margin-top:18px;padding:24px;border:1px solid rgba(184,134,43,.3);border-radius:18px;background:#fff}
+.am-review-form p{font:14px/1.6 system-ui,sans-serif}.am-review-form label{display:grid;gap:7px;margin-bottom:14px;font:600 12px/1.5 system-ui,sans-serif;color:#3a352a}
+.am-review-fields{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+.am-review-form input,.am-review-form select,.am-review-form textarea{box-sizing:border-box;min-width:0;width:100%;padding:12px;border:1px solid rgba(184,134,43,.4);border-radius:9px;background:#fbf7ef;color:#17140f;font:14px/1.5 system-ui,sans-serif}
+.am-review-form :is(input,select,textarea):focus-visible{outline:2px solid #b8862b;outline-offset:2px}
+.am-review-honeypot{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+.am-review-demo{font:13px/1.6 system-ui,sans-serif;color:#756244}.am-review-pages{display:flex;align-items:center;gap:14px;margin-top:20px}
+@media(max-width:600px){.am-review-fields{grid-template-columns:1fr}.am-review-form{padding:18px}}

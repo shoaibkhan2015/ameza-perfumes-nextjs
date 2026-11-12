@@ -2,6 +2,7 @@ import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import BrandVideo from './BrandVideo.jsx';
+import CustomerReviews from './CustomerReviews.jsx';
 import CollectionImage from './CollectionImage.jsx';
 import { collectionTileImage } from '../lib/collection-images.js';
 import ProductCard from './ProductCard.jsx';
@@ -162,22 +163,7 @@ export function Video() {
 
 // ---- sections/am-reviews.liquid
 export function Reviews() {
-  const r = C.reviews;
-  return (
-    <section className="am-sec am-rev"><div className="am-wrap">
-      <div className="am-head" data-reveal>
-        <div><p className="am-eb">{r.eyebrow}</p><h2 className="am-h">{r.heading}</h2></div>
-        <div style={{ textAlign: 'right' }}><div className="am-sum">{r.score}</div><span className="am-stars">★★★★★</span><div style={{ fontSize: 12, opacity: 0.7 }}>{r.count} reviews</div></div>
-      </div>
-      <div className="am-rail">
-        {r.items.map((b, i) => (
-          <div key={i} className="am-rc" data-reveal style={{ '--i': i }}>
-            <span className="am-stars">★★★★★</span><p>{b.text}</p><small>✔ Verified buyer</small><b>{b.name} · {b.city}</b>
-          </div>
-        ))}
-      </div>
-    </div></section>
-  );
+  return <CustomerReviews />;
 }
 
 // ---- sections/am-faq.liquid

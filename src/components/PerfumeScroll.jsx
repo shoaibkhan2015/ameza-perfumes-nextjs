@@ -3,6 +3,8 @@ import { A } from './sections.jsx';
 import '../styles/perfume-scroll.css';
 import { nl2br } from '../lib/nl2br.jsx';
 import { hero as H, site } from '../data/siteContent.js';
+import { useReviews } from '../lib/use-reviews.js';
+import { reviewStars } from '../lib/reviews.js';
 
 const ing = key => `/assets/ing-${key}.svg`;
 const bottles = [
@@ -14,6 +16,8 @@ const bottles = [
 
 // Port of sections/perfume-scroll.liquid (markup + its inline <script>)
 export default function PerfumeScroll() {
+  const reviewFeed = useReviews();
+  const reviewSummary = reviewFeed.data.summary;
   const ref = useRef(null);
   const [bottleIndex, setBottleIndex] = useState(0);
   const [titleIndex, setTitleIndex] = useState(0);
@@ -166,7 +170,7 @@ export default function PerfumeScroll() {
         </div>
         <div className="ps__info"><p className="ps__group" /><h3 className="ps__name" /><p className="ps__note" /></div>
         <div className="ps__cta"><A href={shopHref}>Shop {titleBottle.name}</A><A className="ps__ghost" href={H.cta2Link}>{H.cta2}</A></div>
-        <div className="ps__meta"><span className="am-stars">★★★★★</span><b>{H.rating}</b><span>{H.ratingText}</span></div>
+        <div className="ps__meta"><span className="am-stars">{reviewStars(reviewSummary.average)}</span><b>{reviewFeed.loading || reviewFeed.error || !reviewSummary.count ? '—' : Number(reviewSummary.average).toFixed(1)}</b><span>{reviewFeed.loading ? 'Loading reviews…' : reviewFeed.error ? 'Reviews unavailable' : `${reviewSummary.count} customer reviews`}</span></div>
       </div>
     </section>
   );

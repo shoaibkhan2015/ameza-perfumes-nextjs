@@ -7,6 +7,7 @@ import { fmtDate, money } from '../lib/format.js';
 import { discountedPrice, isValidDiscountPercent } from '../lib/pricing.js';
 import { applySiteAppearance, getSiteContentSnapshot, setSiteContentOverrides } from '../data/siteContent.js';
 import SiteContentEditor from '../components/SiteContentEditor.jsx';
+import AdminReviews from '../components/AdminReviews.jsx';
 import { uploadBrandVideo } from '../lib/brand-video.js';
 import { prepareCollectionImage } from '../lib/collection-images.js';
 import '../styles/admin.css';
@@ -615,6 +616,7 @@ export default function Admin() {
         <div className="admin-header__actions"><a href="/">View storefront</a><button className="admin-button admin-button--quiet" onClick={() => signOut().catch(signOutError => setError(errorMessage(signOutError)))}>Sign out</button></div>
       </header>
       <nav className="admin-tabs" aria-label="Dashboard sections">
+        <button className={section === 'reviews' ? 'is-active' : ''} onClick={() => setSection('reviews')}>Reviews</button>
         <button className={section === 'products' ? 'is-active' : ''} onClick={() => setSection('products')}>Perfumes <span>{products.length}</span></button>
         <button className={section === 'collections' ? 'is-active' : ''} onClick={() => setSection('collections')}>Collections <span>{collections.length}</span></button>
         <button className={section === 'orders' ? 'is-active' : ''} onClick={() => setSection('orders')}>Orders <span>{orders.length}{pendingOrders.length > 0 ? ` · ${pendingOrders.length} pending` : ''}</span></button>
@@ -628,7 +630,7 @@ export default function Admin() {
       {notice && <p className="admin-alert admin-alert--success" role="status">{notice}</p>}
       {storeWarning && <p className="admin-alert admin-alert--error" role="alert">{storeWarning}</p>}
 
-      {section === 'products' ? (
+      {section === 'reviews' ? <AdminReviews products={products} /> : section === 'products' ? (
         <div className="admin-products">
           <section className="admin-panel admin-product-form">
             <div className="admin-panel__heading"><div><p className="admin-eyebrow">{selected ? 'Edit listing' : 'Catalogue'}</p><h2>{selected ? 'Edit perfume' : 'Add a perfume'}</h2></div>

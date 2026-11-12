@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Countdown from './Countdown.jsx';
+import CustomerReviews, { ReviewRating } from './CustomerReviews.jsx';
 import { useCart } from '../lib/cart.jsx';
 import { bottleKey, bottleUrl, discountPct, money } from '../lib/format.js';
 import { getProductNoteRows } from '../lib/fragrance.js';
@@ -22,7 +23,7 @@ const GROUPS = [['Top Notes', 'Opening · first 15 min'], ['Middle Notes', 'Hear
 const eta = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); };
 
 // Port of sections/am-pdp-main.liquid
-export function PdpMain({ product }) {
+export function PdpMain({ product, reviewFeed }) {
   const { add } = useCart();
   const router = useRouter();
   const profile = C.profileFor(product.handle);
@@ -73,7 +74,7 @@ export function PdpMain({ product }) {
           <div className="pdp-info" data-reveal style={{ '--i': 2 }}>
             <p className="pdp-eb">{product.vendor}{product.productType && ` · ${product.productType}`}</p>
             <h1 className="pdp-title">{product.title}</h1>
-            <a className="pdp-rate" href="#reviews"><span className="am-stars">★★★★★</span> {C.pdp.score} · {C.pdp.count} reviews</a>
+            <a className="pdp-rate" href="#reviews">{reviewFeed.loading ? 'Loading reviews…' : reviewFeed.error ? 'Reviews unavailable' : <ReviewRating summary={reviewFeed.data.summary} />}</a>
             <div className="pdp-price">
               <span>{money(v.price)}</span>
               {onSale && <><s className="am-was">{money(v.compareAtPrice)}</s><span className="pdp-save">{salePercent}% OFF</span></>}
@@ -175,26 +176,6 @@ export function PdpStory({ product }) {
 }
 
 // Port of sections/am-pdp-reviews.liquid
-export function PdpReviews() {
-  const r = C.pdpReviews;
-  return (
-    <section className="am-sec am-rev" id="reviews"><div className="am-wrap">
-      <div className="am-head" data-reveal><div><p className="am-eb">{r.eyebrow}</p><h2 className="am-h">{r.heading}</h2></div></div>
-      <div className="rv">
-        <div className="rv-sum" data-reveal>
-          <div className="am-sum">{r.score}</div><span className="am-stars">★★★★★</span>
-          <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 10 }}>Based on {r.count} reviews</div>
-          {[5, 4, 3, 2, 1].map(n => <div className="rb" key={n}>{n}★<i><u style={{ '--w': r['p' + n] + '%' }} /></i><span>{r['p' + n]}%</span></div>)}
-          <a className="am-btn" style={{ width: '100%', marginTop: 14 }} href="#">{r.writeReviewLabel}</a>
-        </div>
-        <div className="rv-list">
-          {r.items.map((b, i) => (
-            <div key={i} className="am-rc" data-reveal style={{ '--i': i }}>
-              <time>{b.date}</time><span className="am-stars">★★★★★</span><h4>{b.title}</h4><p>{b.text}</p><small>✔ Verified buyer</small><b>{b.name} · {b.city}</b>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div></section>
-  );
+export function PdpReviews({ product, feed }) {
+  return <CustomerReviews product={product} feed={feed} />;
 }

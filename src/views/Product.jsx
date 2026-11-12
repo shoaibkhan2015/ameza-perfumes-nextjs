@@ -6,20 +6,22 @@ import { ProductRail, Video } from '../components/sections.jsx';
 import NotFound from './NotFound.jsx';
 import { useApi, useTitle } from '../lib/hooks.js';
 import { pageSections } from '../data/siteContent.js';
+import { useReviews } from '../lib/use-reviews.js';
 
 // templates/product.json
 export default function Product() {
   const { handle } = useParams();
   const { data, error, loading } = useApi(`/products/${handle}`);
   const p = data?.product;
+  const reviewFeed = useReviews(p?.id, !!p);
   useTitle(p?.title, p?.descriptionHtml?.replace(/<[^>]+>/g, ' ').trim().slice(0, 160));
   if (error?.status === 404) return <NotFound />;
   if (loading || !p) return <section className="am-sec" style={{ minHeight: '70vh' }} />;
   const sections = {
-    main: <PdpMain key={p.id} product={p} />,
+    main: <PdpMain key={p.id} product={p} reviewFeed={reviewFeed} />,
     story: <PdpStory product={p} />,
     video: <Video />,
-    reviews: <PdpReviews />,
+    reviews: <PdpReviews product={p} feed={reviewFeed} />,
     recommendations: <ProductRail eyebrow="Complete the collection" heading="You may also like" />,
   };
   return (

@@ -19,7 +19,7 @@ export default function ProductCard({ product, index = 0, bg = '#1c2a55' }) {
           : <div className="am-demo" role="img" aria-label={product.title} style={{ '--bot': `url('${bottleUrl(product.handle)}')` }} />}
       </Link>
       <div className="am-card__body">
-        <span className="am-stars">★★★★★ 4.9</span>
+        <span className="am-stars"><Link href={`/products/${product.handle}#reviews`}>Customer reviews</Link></span>
         <h3 className="am-card__t"><Link href={`/products/${product.handle}`}>{product.title}</Link></h3>
         <div className="am-price">{onSale && <s className="am-was">{money(product.compareAtPrice)}</s>}{money(product.price)}</div>
         {product.available && inv > 0 && inv < 10 && <p className="am-low">🔥 Only {inv} left in stock</p>}
