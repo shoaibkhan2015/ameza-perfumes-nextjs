@@ -2,6 +2,8 @@ import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import BrandVideo from './BrandVideo.jsx';
+import CollectionImage from './CollectionImage.jsx';
+import { collectionTileImage } from '../lib/collection-images.js';
 import ProductCard from './ProductCard.jsx';
 import { NewsletterForm } from './Footer.jsx';
 import { api } from '../lib/api.js';
@@ -32,16 +34,17 @@ const collectionBottle = handle => ({
 // ---- sections/am-tiles.liquid
 export function Tiles() {
   const t = C.tiles;
+  const { data } = useApi('/collections');
   return (
     <section className="am-sec" id="shop"><div className="am-wrap">
       <div className="am-head" data-reveal><div><p className="am-eb">{t.eyebrow}</p><h2 className="am-h">{t.heading}</h2></div></div>
       <div className="am-tiles">
         {t.items.map((b, i) => {
           const tileHandle = String(b.link || '').split('/').filter(Boolean).pop() || 'all';
-          const demoStyle = { '--bot': `url('${collectionBottle(tileHandle)}')` };
+          const image = collectionTileImage(data?.collections || [], b.link, b.image);
           return (
             <Link key={i} className="am-tile" href={b.link} data-reveal style={{ '--i': i, '--tb': b.color }}>
-              {b.image ? <img src={b.image} alt="" loading="lazy" /> : <div className="am-demo" style={demoStyle} />}
+              <CollectionImage src={image} loading="lazy" fallbackBottle={collectionBottle(tileHandle)} />
               <div className="am-tile__meta">
                 <span className="am-tile__eyebrow">Collection</span>
                 <h3>{b.title}</h3>

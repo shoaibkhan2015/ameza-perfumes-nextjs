@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import CollectionImage from '../components/CollectionImage.jsx';
 import { useApi, useTitle } from '../lib/hooks.js';
 
 const collectionBottle = handle => ({
@@ -22,7 +23,7 @@ export default function CollectionList() {
       <div className="am-tiles">
         {(data?.collections || []).filter(c => c.handle !== 'all').map((c, i) => (
           <Link key={c.handle} className="am-tile" href={`/collections/${c.handle}`} data-reveal style={{ '--i': i, '--tb': '#1d3f8a' }}>
-            {c.image ? <img src={c.image} alt={c.title} loading="lazy" /> : <div className="am-demo" style={{ '--bot': `url('${collectionBottle(c.handle)}')` }} />}
+            <CollectionImage src={c.image} alt={c.title} loading="lazy" fallbackBottle={collectionBottle(c.handle)} />
             <div className="am-tile__meta">
               <span className="am-tile__eyebrow">Collection</span>
               <h3>{c.title}</h3>

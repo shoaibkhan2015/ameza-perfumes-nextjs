@@ -8,6 +8,7 @@ import { discountedPrice, isValidDiscountPercent } from '../lib/pricing.js';
 import { applySiteAppearance, getSiteContentSnapshot, setSiteContentOverrides } from '../data/siteContent.js';
 import SiteContentEditor from '../components/SiteContentEditor.jsx';
 import { uploadBrandVideo } from '../lib/brand-video.js';
+import { prepareCollectionImage } from '../lib/collection-images.js';
 import '../styles/admin.css';
 
 const BUCKET = 'ameza-product-images';
@@ -467,7 +468,7 @@ export default function Admin() {
           title,
           handle,
           description: collectionForm.description.trim(),
-          image: collectionForm.image.trim() || null,
+          image: collectionForm.image?.trim() ?? null,
         };
         const result = selectedCollection
           ? await supabase.from('collections').update(values).eq('id', selectedCollection.id).select('id, handle, title, description, image, sort_order').single()
@@ -511,7 +512,7 @@ export default function Admin() {
         title: collection.title,
         handle: collection.handle,
         description: collection.description || '',
-        image: collection.image || '',
+        image: collection.image ?? null,
       });
       setError('');
       setNotice('');
@@ -744,7 +745,7 @@ export default function Admin() {
           <section className="admin-panel admin-product-form">
             <div className="admin-panel__heading">
               <div><p className="admin-eyebrow">{selectedCollection ? 'Edit collection' : 'Catalogue'}</p><h2>{selectedCollection ? 'Update collection' : 'Add a collection'}</h2></div>
-              {selectedCollection && <button className="admin-text-button" type="button" onClick={() => {
+              {selectedCollection && <button className="admin-text-button" type="button" disabled={busy} onClick={() => {
                 setSelectedCollection(null);
                 setCollectionForm({ title: '', handle: '', description: '', image: '' });
               }}>Cancel edit</button>}
@@ -753,19 +754,26 @@ export default function Admin() {
               <label>Collection name<input required maxLength="120" value={collectionForm.title} onChange={event => setCollectionForm({ ...collectionForm, title: event.target.value, handle: selectedCollection ? collectionForm.handle : slugifyHandle(event.target.value) })} placeholder="e.g. Attar" /></label>
               <label>URL handle<input required maxLength="120" value={collectionForm.handle} onChange={event => setCollectionForm({ ...collectionForm, handle: slugifyHandle(event.target.value) })} placeholder="attar" /></label>
               <label>Description<textarea rows="4" value={collectionForm.description} onChange={event => setCollectionForm({ ...collectionForm, description: event.target.value })} /></label>
-              <label>Collection image URL<input value={collectionForm.image} onChange={event => setCollectionForm({ ...collectionForm, image: event.target.value })} placeholder="Upload an image below or paste a URL" /></label>
-              <label>Upload cover image<input type="file" accept="image/*" disabled={busy} onChange={async event => {
+              <label>Collection image URL<input disabled={busy} value={collectionForm.image || ''} onChange={event => setCollectionForm({ ...collectionForm, image: event.target.value })} placeholder="Upload an image below or paste a URL" /></label>
+              <label>{collectionForm.image ? 'Replace cover image' : 'Upload cover image'}<input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" disabled={busy} onChange={async event => {
                 const file = event.target.files?.[0];
                 event.target.value = '';
                 if (!file) return;
+                setError('');
+                setBusy(true);
                 try {
-                  const image = await uploadContentImage(file);
+                  const optimized = await prepareCollectionImage(file);
+                  const image = await uploadContentImage(optimized);
                   setCollectionForm(current => ({ ...current, image }));
                 } catch (uploadError) {
                   setError(errorMessage(uploadError));
+                } finally {
+                  setBusy(false);
                 }
               }} /></label>
+              <p className="admin-muted">JPG, PNG, or WebP, up to 10 MB. Large images are resized to 1600px. Save the collection to publish image changes.</p>
               {collectionForm.image && <img className="admin-collection-preview" src={collectionForm.image} alt="Collection cover preview" />}
+              {collectionForm.image && <button className="admin-text-button admin-text-button--danger" type="button" disabled={busy} onClick={() => setCollectionForm(current => ({ ...current, image: '' }))}>Remove cover image</button>}
               <button className="admin-button" type="submit" disabled={busy}>{busy ? 'Saving…' : selectedCollection ? 'Save collection' : 'Create collection'}</button>
             </form>
           </section>
@@ -776,7 +784,7 @@ export default function Admin() {
               return <article className="admin-product-row" key={collection.id}>
                 <div className="admin-product-row__image">{collection.image && <img src={collection.image} alt="" />}</div>
                 <div className="admin-product-row__info"><b>{collection.title}</b><span>/collections/{collection.handle}</span><small>{productCount} assigned perfume{productCount === 1 ? '' : 's'}</small></div>
-                <div className="admin-row-actions"><button className="admin-text-button" onClick={() => editCollection(collection)}>Edit</button><button className="admin-text-button admin-text-button--danger" onClick={() => deleteCollection(collection)}>Delete</button></div>
+                <div className="admin-row-actions"><button className="admin-text-button" disabled={busy} onClick={() => editCollection(collection)}>Edit</button><button className="admin-text-button admin-text-button--danger" disabled={busy} onClick={() => deleteCollection(collection)}>Delete</button></div>
               </article>;
             })}</div> : <p className="admin-empty">No collections yet. Create your first collection.</p>}
           </section>

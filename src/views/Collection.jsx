@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import ProductCard from '../components/ProductCard.jsx';
+import CollectionImage from '../components/CollectionImage.jsx';
 import { Newsletter } from '../components/sections.jsx';
 import NotFound from './NotFound.jsx';
 import { useApi, useTitle } from '../lib/hooks.js';
@@ -61,7 +62,7 @@ export default function Collection() {
       <section className="am-sec"><div className="am-wrap">
         <nav className="pdp-bc"><Link href="/">Home</Link> / {c.title}</nav>
         <div className="plp-hero" data-reveal>
-          {c.image && <img src={c.image} alt={c.title} />}
+          <CollectionImage src={c.image} alt={c.title} />
           <p className="am-eb">Collection</p><h1 className="am-h">{c.title}</h1>
           {c.description && <div className="plp-desc" dangerouslySetInnerHTML={{ __html: c.description }} />}
           <small>{total} products</small>
