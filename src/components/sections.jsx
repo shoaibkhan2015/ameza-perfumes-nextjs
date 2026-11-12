@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import BrandVideo from './BrandVideo.jsx';
 import ProductCard from './ProductCard.jsx';
 import { NewsletterForm } from './Footer.jsx';
 import { api } from '../lib/api.js';
@@ -139,18 +140,6 @@ export function Offer() {
 // ---- sections/am-video.liquid
 export function Video() {
   const v = C.video;
-  const [yt, setYt] = useState(false);
-  const embed = (() => {
-    const m = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/.exec(v.videoUrl || '');
-    if (m) return `https://www.youtube.com/embed/${m[1]}?autoplay=1&rel=0`;
-    const n = /vimeo\.com\/(\d+)/.exec(v.videoUrl || '');
-    return n ? `https://player.vimeo.com/video/${n[1]}?autoplay=1` : '';
-  })();
-  const [muted, setMuted] = useState(true);
-  const toggleSound = e => {
-    const vid = e.currentTarget.parentNode.querySelector('video');
-    vid.muted = !vid.muted; vid.currentTime = 0; vid.play(); setMuted(vid.muted);
-  };
   return (
     <section className="am-sec"><div className="am-wrap">
       <div className="am-head" data-reveal style={{ justifyContent: 'center', textAlign: 'center' }}>
@@ -159,20 +148,7 @@ export function Video() {
       <div className="vd-wrap">
         <div className="vd-side" data-reveal><b>{v.lt}</b><p>{v.ltx}</p></div>
         <div className="vd" data-reveal>
-          {embed ? (
-            yt ? <iframe src={embed} allow="autoplay;fullscreen" allowFullScreen title={v.caption} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} />
-               : <button type="button" className="vd-poster" aria-label="Play video" onClick={() => setYt(true)}><span className="vd-play" /></button>
-          ) : v.videoFile ? (
-            <>
-              <video src={v.videoFile} poster={v.posterImage || undefined} autoPlay muted loop playsInline />
-              <button type="button" className="vd-snd" onClick={toggleSound}>{muted ? '🔊 Sound on' : '🔇 Mute'}</button>
-            </>
-          ) : (
-            <>
-              <video src="/assets/drift-reel.webm" poster={v.posterImage || undefined} autoPlay muted loop playsInline />
-              <button type="button" className="vd-snd" onClick={toggleSound}>{muted ? '🔊 Sound on' : '🔇 Mute'}</button>
-            </>
-          )}
+          <BrandVideo source={v.videoFile} poster={v.posterImage} caption={v.caption} />
           <span className="vd-cap">{v.caption}</span>
         </div>
         <div className="vd-side r" data-reveal><b>{v.rt}</b><p>{v.rtx}</p></div>

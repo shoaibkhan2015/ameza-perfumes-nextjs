@@ -7,6 +7,7 @@ import { fmtDate, money } from '../lib/format.js';
 import { discountedPrice, isValidDiscountPercent } from '../lib/pricing.js';
 import { applySiteAppearance, getSiteContentSnapshot, setSiteContentOverrides } from '../data/siteContent.js';
 import SiteContentEditor from '../components/SiteContentEditor.jsx';
+import { uploadBrandVideo } from '../lib/brand-video.js';
 import '../styles/admin.css';
 
 const BUCKET = 'ameza-product-images';
@@ -531,6 +532,15 @@ export default function Admin() {
     }
   }
 
+  async function uploadContentVideo(file) {
+    setBusy(true);
+    try {
+      return await uploadBrandVideo(supabase.storage, user.id, file);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submitLogin(event) {
     event.preventDefault();
     setError('');
@@ -911,7 +921,7 @@ export default function Admin() {
               <label>About description<textarea rows="4" value={contentForm.about.text} onChange={event => setContentForm({ ...contentForm, about: { ...contentForm.about, text: event.target.value } })} /></label>
             </section>
             </>)}
-            <SiteContentEditor content={contentForm} onChange={setContentForm} onUploadImage={uploadContentImage} disabled={busy} collections={collections} />
+            <SiteContentEditor content={contentForm} onChange={setContentForm} onUploadImage={uploadContentImage} onUploadVideo={uploadContentVideo} disabled={busy} collections={collections} />
             <div className="admin-content-actions">
               <p>Changes are saved to Supabase and shared with every storefront visitor.</p>
               <button className="admin-button" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save website content'}</button>

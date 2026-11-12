@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import VideoUploadField from './VideoUploadField.jsx';
 
 const GROUPS = [
   { label: 'Store details', fields: [['site', 'Brand & contact details']] },
@@ -173,7 +174,7 @@ function ContentField({ name, value, path, onChange, onUploadImage, disabled, de
   );
 }
 
-export default function SiteContentEditor({ content, onChange, onUploadImage, disabled, collections = [] }) {
+export default function SiteContentEditor({ content, onChange, onUploadImage, onUploadVideo, disabled, collections = [] }) {
   const [activeGroup, setActiveGroup] = useState(0);
   const group = GROUPS[activeGroup];
 
@@ -198,7 +199,8 @@ export default function SiteContentEditor({ content, onChange, onUploadImage, di
         {group.fields.map(([key, title]) => (
           <section className="cms-editor__section" key={key}>
             <h4>{title}</h4>
-            <ContentField name={title} value={content[key]} path={[key]} onChange={changeValue} onUploadImage={onUploadImage} disabled={disabled} collections={collections} />
+            {key === 'video' && <VideoUploadField video={content.video} onChange={url => changeValue(['video', 'videoFile'], url)} onUpload={onUploadVideo} disabled={disabled} />}
+            <ContentField name={title} value={key === 'video' ? Object.fromEntries(Object.entries(content.video).filter(([field]) => !['videoUrl', 'videoFile'].includes(field))) : content[key]} path={[key]} onChange={changeValue} onUploadImage={onUploadImage} disabled={disabled} collections={collections} />
           </section>
         ))}
       </div>
